@@ -3,7 +3,7 @@ package routes
 import (
 	"ilock-http-service/config"
 	"ilock-http-service/controllers"
-	_ "ilock-http-service/docs" // 导入 Swagger 文档，这行很重要！
+	_ "ilock-http-service/docs"
 	"ilock-http-service/middleware"
 	"ilock-http-service/services/container"
 
@@ -75,10 +75,6 @@ func registerPublicRoutes(
 	api.POST("/rtc/token", controllers.HandleRTCFunc(container, "getToken"))
 	api.POST("/rtc/call", controllers.HandleRTCFunc(container, "startCall"))
 
-	// Weather 路由
-	api.GET("/weather", controllers.HandleWeatherFunc(container, db, "getWeather"))
-	api.GET("/weather/device/:deviceId", controllers.HandleWeatherFunc(container, db, "getDeviceWeather"))
-	api.GET("/weather/forecast", controllers.HandleWeatherFunc(container, db, "get15DaysForecast"))
 }
 
 // registerAuthenticatedRoutes 注册需要认证的路由

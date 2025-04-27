@@ -1,38 +1,34 @@
 # Build code
-FROM golang:1.23.0-alpine AS build-stage
-
-ENV GO111MODULE=on
-ENV GOPROXY=https://goproxy.cn,direct
-ENV CGO_ENABLED=0
-ENV GOOS=linux
-ENV GOARCH=amd64
+FROM golang:1.21-alpine AS builder
 
 WORKDIR /app
-COPY . /app
 
-# Download dependencies and build
-RUN go mod tidy
-RUN go build -o main .
+# Copy go.mod and go.sum
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build application
+RUN CGO_ENABLED=0 GOOS=linux go build -o ilock_service
 
 # Run release
-FROM alpine:3.14 AS release-stage
-
-# Install necessary runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata
+FROM alpine:latest
 
 WORKDIR /app
 
 # Copy binary and config
-COPY --from=build-stage /app/main /app/
-COPY --from=build-stage /app/config /app/config
+COPY --from=builder /app/ilock_service .
 
 # Create logs directory
-RUN mkdir -p /app/logs && \
-  chmod 755 /app/logs
+RUN mkdir -p /app/logs
 
 # Set executable permissions
-RUN chmod +x /app/main
+RUN chmod +x /app/ilock_service
 
-EXPOSE 8080
+EXPOSE 20033
 
-ENTRYPOINT ["/app/main"] 
+ENTRYPOINT ["./ilock_service"] 

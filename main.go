@@ -37,11 +37,18 @@ import (
 func main() {
 	// 加载.env文件
 	if err := godotenv.Load(); err != nil {
-		log.Printf("警告: 无法加载.env文件: %v", err)
+		config.Warning("无法加载.env文件: %v", err)
 		// 即使加载失败也继续执行，可能环境变量已经通过其他方式设置
 	} else {
-		log.Println("成功加载.env文件")
+		config.Info("成功加载.env文件")
 	}
+
+	// 初始化日志配置
+	if err := config.SetupLogger(); err != nil {
+		fmt.Printf("初始化日志配置失败: %v\n", err)
+		os.Exit(1)
+	}
+	config.Info("日志配置初始化成功")
 
 	// 获取配置
 	cfg := config.GetConfig()
@@ -88,9 +95,10 @@ func main() {
 	}
 
 	// 启动服务器
-	log.Printf("服务器启动在: http://localhost:%s", port)
+	config.Info("服务器启动在: http://localhost:%s", port)
 	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("启动服务器失败: %v", err)
+		config.Error("启动服务器失败: %v", err)
+		os.Exit(1)
 	}
 }
 

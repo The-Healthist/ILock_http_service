@@ -1,15 +1,17 @@
+version: '3.8'
+
 services:
   app:
-    build: .
+    image: ${DOCKER_USERNAME}/ilock-service:latest
     container_name: ilock_app
     restart: always
     ports:
-      - "8080:8080"
+      - "20033:20033"
     env_file:
       - ./.env
     environment:
       - TZ=Asia/Shanghai
-      - DB_HOST=mysql
+      - DB_HOST=db
       - DB_PORT=3306
       - DB_USER=root
       - DB_PASSWORD=1090119your
@@ -17,35 +19,32 @@ services:
       - DB_TIMEZONE=Asia/Shanghai
       - SERVER_PORT=8080
       - REDIS_HOST=redis
-      - REDIS_PORT=6380
+      - REDIS_PORT=6379
       - REDIS_PASSWORD=
       - REDIS_DB=0
-      - WEATHER_API_KEY=your_weather_api_key
       - ALIYUN_ACCESS_KEY_ID=67613a6a74064cad9859c8f794980cae
       - ALIYUN_ACCESS_KEY_SECRET=your_aliyun_key_secret
       - ALIYUN_RTC_APP_ID=md3fh5x4
       - ALIYUN_RTC_REGION=cn-hangzhou
       - JWT_SECRET_KEY=your_jwt_secret_key_123456789
-      - MOJI_WEATHER_ID=1033800574024974
-      - MOJI_WEATHER_KEY=DIlHX7u7v5jFONwJMSMEnPcnOAHYSZ
     volumes:
       - ./logs:/app/logs
     depends_on:
-      - mysql
+      - db
       - redis
     networks:
       - ilock_network
 
-  mysql:
+  db:
     image: mysql:8.0
     container_name: ilock_mysql
     restart: always
     ports:
-      - "3308:3306"
+      - "3310:3306"
     environment:
       - TZ=Asia/Shanghai
-      - MYSQL_ROOT_PASSWORD=1090119your
-      - MYSQL_DATABASE=ilock_db
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_DATABASE=${DB_NAME}
       - MYSQL_USER=ilock_user
       - MYSQL_PASSWORD=1090119your
     volumes:
@@ -55,7 +54,7 @@ services:
       - ilock_network
 
   redis:
-    image: redis:7.4.1
+    image: redis:7.0-alpine
     container_name: ilock_redis
     restart: always
     ports:

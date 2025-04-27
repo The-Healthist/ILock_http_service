@@ -20,10 +20,9 @@ type ServiceContainer struct {
 	redis  *redis.Client
 
 	// 服务
-	jwtService     *services.JWTService
-	rtcService     *services.RTCService
-	weatherService *services.WeatherService
-	redisService   *services.RedisService
+	jwtService   *services.JWTService
+	rtcService   *services.RTCService
+	redisService *services.RedisService
 
 	// 新增服务
 	deviceService     *services.DeviceService
@@ -73,7 +72,6 @@ func (c *ServiceContainer) initializeServices() {
 	// 初始化服务
 	c.jwtService = services.NewJWTService(c.config)
 	c.rtcService = services.NewRTCService(c.config)
-	c.weatherService = services.NewWeatherService(c.config)
 	c.redisService = services.NewRedisService(c.config)
 
 	// 初始化新增服务
@@ -97,13 +95,6 @@ func (c *ServiceContainer) GetRTCService() *services.RTCService {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.rtcService
-}
-
-// GetWeatherService 获取天气服务
-func (c *ServiceContainer) GetWeatherService() *services.WeatherService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.weatherService
 }
 
 // GetRedisService 获取Redis服务
@@ -172,8 +163,6 @@ func (c *ServiceContainer) GetService(name string) interface{} {
 		return c.jwtService
 	case "rtc":
 		return c.rtcService
-	case "weather":
-		return c.weatherService
 	case "redis":
 		return c.redisService
 	case "device":
