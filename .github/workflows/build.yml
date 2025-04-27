@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 env:
-  GO_VERSION: '1.21'
-  DOCKER_IMAGE: stonesea/ilock-service
+  GO_VERSION: '1.23.0'
+  DOCKER_IMAGE: stonesea/ilock-http-service
   DOCKER_REGISTRY: docker.imgdb.de
 
 jobs:
@@ -97,18 +97,21 @@ jobs:
           sudo systemctl restart docker
           
           # 修改镜像地址为加速源地址
-          sed -i "s|image: stonesea/ilock-service:latest|image: docker.imgdb.de/stonesea/ilock-service:latest|g" docker-compose.yml
+          sed -i "s|image: stonesea/ilock-http-service:latest|image: docker.imgdb.de/stonesea/ilock-http-service:latest|g" docker-compose.yml
           sed -i "s|image: mysql:8.0|image: docker.imgdb.de/mysql:8.0|g" docker-compose.yml
           sed -i "s|image: redis:7.0-alpine|image: docker.imgdb.de/redis:7.0-alpine|g" docker-compose.yml
           
           # 停止并删除所有相关容器
+          echo "停止并清理现有服务..."
           docker-compose down --volumes --remove-orphans || true
           
           # 删除旧的镜像
-          docker rmi docker.imgdb.de/stonesea/ilock-service:latest || true
-          docker rmi stonesea/ilock-service:latest || true
+          echo "清理旧镜像..."
+          docker rmi docker.imgdb.de/stonesea/ilock-http-service:latest || true
+          docker rmi stonesea/ilock-http-service:latest || true
           
           # 拉取镜像（带重试机制）
+          echo "开始拉取镜像..."
           max_retries=5
           retry_count=0
           
@@ -128,69 +131,89 @@ jobs:
           done
           
           # 启动服务
+          echo "启动服务..."
           docker-compose up -d
           
-          # 等待服务启动
-          echo "等待服务启动..."
-          sleep 20
+          # 等待并检查服务启动状态
+          echo "等待服务启动并检查状态..."
           
-          # 检查容器状态
-          docker-compose ps
-          
-          # 等待 MySQL 就绪
-          echo "等待 MySQL 就绪..."
+          # 检查 MySQL 就绪状态
+          echo "正在等待 MySQL 就绪..."
           for i in {1..30}; do
-            if docker exec ilock_mysql mysqladmin ping -h localhost > /dev/null 2>&1; then
-              echo "MySQL 已就绪"
-              break
+            if docker-compose ps mysql | grep -q "Up"; then
+              if docker exec ilock_mysql mysqladmin ping -h localhost --silent; then
+                echo "MySQL 已就绪 (尝试 $i/30)"
+                break
+              fi
             fi
-            echo "MySQL 未就绪，等待..."
+            if [ $i -eq 30 ]; then
+              echo "MySQL 启动超时"
+              docker-compose logs mysql
+              exit 1
+            fi
+            echo "MySQL 启动中... (尝试 $i/30)"
             sleep 2
           done
           
-          # 等待 Redis 就绪
-          echo "等待 Redis 就绪..."
+          # 检查 Redis 就绪状态
+          echo "正在等待 Redis 就绪..."
           for i in {1..30}; do
-            if docker exec ilock_redis redis-cli ping > /dev/null 2>&1; then
-              echo "Redis 已就绪"
-              break
+            if docker-compose ps redis | grep -q "Up"; then
+              if docker exec ilock_redis redis-cli ping | grep -q "PONG"; then
+                echo "Redis 已就绪 (尝试 $i/30)"
+                break
+              fi
             fi
-            echo "Redis 未就绪，等待..."
+            if [ $i -eq 30 ]; then
+              echo "Redis 启动超时"
+              docker-compose logs redis
+              exit 1
+            fi
+            echo "Redis 启动中... (尝试 $i/30)"
             sleep 2
           done
           
           # 检查应用服务健康状态
-          echo "检查应用服务健康状态..."
-          for i in {1..30}; do
-            if curl -s http://localhost:20033/api/ping > /dev/null 2>&1; then
-              echo "应用服务启动成功！"
-              echo "所有服务状态："
-              docker-compose ps
-              
-              # 恢复原始配置
-              sed -i "s|image: docker.imgdb.de/stonesea/ilock-service:latest|image: stonesea/ilock-service:latest|g" docker-compose.yml
-              sed -i "s|image: docker.imgdb.de/mysql:8.0|image: mysql:8.0|g" docker-compose.yml
-              sed -i "s|image: docker.imgdb.de/redis:7.0-alpine|image: redis:7.0-alpine|g" docker-compose.yml
-              
-              exit 0
+          echo "正在等待应用服务就绪..."
+          for i in {1..60}; do
+            if docker-compose ps app | grep -q "Up"; then
+              if curl -s http://localhost:20033/api/ping > /dev/null 2>&1; then
+                echo "应用服务启动成功！(尝试 $i/60)"
+                echo "所有服务状态："
+                docker-compose ps
+                
+                # 恢复原始配置
+                sed -i "s|image: docker.imgdb.de/stonesea/ilock-http-service:latest|image: stonesea/ilock-http-service:latest|g" docker-compose.yml
+                sed -i "s|image: docker.imgdb.de/mysql:8.0|image: mysql:8.0|g" docker-compose.yml
+                sed -i "s|image: docker.imgdb.de/redis:7.0-alpine|image: redis:7.0-alpine|g" docker-compose.yml
+                
+                exit 0
+              fi
             fi
-            echo "尝试 $i/30: 应用服务未就绪..."
             
-            # 显示应用日志
-            echo "应用日志："
-            docker logs ilock_app --tail=20
+            if [ $i -eq 60 ]; then
+              echo "应用服务启动超时"
+              echo "应用服务日志："
+              docker-compose logs app
+              break
+            fi
             
+            if [ $((i % 5)) -eq 0 ]; then
+              echo "应用服务启动中... (尝试 $i/60)"
+              echo "最新日志："
+              docker-compose logs --tail=10 app
+            fi
             sleep 2
           done
           
           # 恢复原始配置（即使失败也要恢复）
-          sed -i "s|image: docker.imgdb.de/stonesea/ilock-service:latest|image: stonesea/ilock-service:latest|g" docker-compose.yml
+          sed -i "s|image: docker.imgdb.de/stonesea/ilock-http-service:latest|image: stonesea/ilock-http-service:latest|g" docker-compose.yml
           sed -i "s|image: docker.imgdb.de/mysql:8.0|image: mysql:8.0|g" docker-compose.yml
           sed -i "s|image: docker.imgdb.de/redis:7.0-alpine|image: redis:7.0-alpine|g" docker-compose.yml
           
           echo "服务启动失败"
-          echo "应用服务日志："
-          docker logs ilock_app
-          echo "容器状态："
+          echo "完整服务状态："
           docker-compose ps
+          echo "所有服务日志："
+          docker-compose logs
           exit 1 

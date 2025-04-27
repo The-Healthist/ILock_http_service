@@ -35,6 +35,12 @@ import (
 )
 
 func main() {
+	// 初始化日志配置
+	if err := config.SetupLogger(); err != nil {
+		fmt.Printf("初始化日志配置失败: %v\n", err)
+		os.Exit(1)
+	}
+
 	// 加载.env文件
 	if err := godotenv.Load(); err != nil {
 		config.Warning("无法加载.env文件: %v", err)
@@ -42,13 +48,6 @@ func main() {
 	} else {
 		config.Info("成功加载.env文件")
 	}
-
-	// 初始化日志配置
-	if err := config.SetupLogger(); err != nil {
-		fmt.Printf("初始化日志配置失败: %v\n", err)
-		os.Exit(1)
-	}
-	config.Info("日志配置初始化成功")
 
 	// 获取配置
 	cfg := config.GetConfig()
@@ -126,7 +125,6 @@ func autoMigrate(db *gorm.DB) error {
 		&models.CallRecord{},
 		&models.AccessLog{},
 		&models.EmergencyLog{},
-		&models.Weather{},
 		&models.SystemLog{},
 	)
 

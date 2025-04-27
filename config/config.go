@@ -29,15 +29,6 @@ type Config struct {
 	RedisPort string
 	RedisDB   int
 
-	// Weather API
-	WeatherAPIKey string
-	WeatherAPIURL string
-
-	// 墨迹天气API
-	MojiWeatherID  string
-	MojiWeatherKey string
-	MojiWeatherURL string
-
 	// Aliyun RTC
 	AliyunAccessKey string
 	AliyunRTCAppID  string
@@ -68,15 +59,6 @@ func LoadConfig() *Config {
 		RedisHost: getEnv("REDIS_HOST", "localhost"),
 		RedisPort: getEnv("REDIS_PORT", "6380"),
 		RedisDB:   getEnvAsInt("REDIS_DB", 0),
-
-		// Weather API config
-		WeatherAPIKey: getEnv("WEATHER_API_KEY", ""),
-		WeatherAPIURL: getEnv("WEATHER_API_URL", "https://api.weatherapi.com/v1"),
-
-		// 墨迹天气API config
-		MojiWeatherID:  getEnv("MOJI_WEATHER_ID", ""),
-		MojiWeatherKey: getEnv("MOJI_WEATHER_KEY", ""),
-		MojiWeatherURL: getEnv("MOJI_WEATHER_URL", "https://cn.apihz.cn/api/tianqi/tqybmoji15ip.php"),
 
 		// Aliyun RTC config
 		AliyunAccessKey: getEnv("ALIYUN_ACCESS_KEY", "67613a6a74064cad9859c8f794980cae"),

@@ -1,9 +1,8 @@
-version: '3.8'
 
 services:
   app:
-    image: stonesea/ilock-service:latest
-    container_name: ilock_app
+    image: stonesea/ilock-http-service:latest
+    container_name: ilock_http_service
     restart: always
     ports:
       - "20033:20033"

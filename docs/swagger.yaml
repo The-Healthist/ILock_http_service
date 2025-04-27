@@ -443,6 +443,21 @@ definitions:
       updated_at:
         type: string
     type: object
+  models.SystemLog:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      level:
+        type: string
+      message:
+        type: string
+      source:
+        type: string
+      updated_at:
+        type: string
+    type: object
   models.Weather:
     properties:
       device:

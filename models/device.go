@@ -29,5 +29,4 @@ type Device struct {
 	CallRecords   []CallRecord    `gorm:"foreignKey:DeviceID" json:"call_records,omitempty"`
 	AccessLogs    []AccessLog     `gorm:"foreignKey:DeviceID" json:"access_logs,omitempty"`
 	EmergencyLogs []EmergencyLog  `gorm:"foreignKey:DeviceID" json:"emergency_logs,omitempty"`
-	Weather       *Weather        `gorm:"foreignKey:DeviceID" json:"weather,omitempty"`
 }

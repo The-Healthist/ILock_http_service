@@ -3,7 +3,9 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"ilock-http-service/config"
+	"ilock-http-service/models"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -68,24 +70,18 @@ func (s *RedisService) GetRTCToken(userID, channelID string) (string, error) {
 	return s.Client.Get(s.Ctx, key).Result()
 }
 
-// CacheWeather caches weather data with expiration
-func (s *RedisService) CacheWeather(location string, weatherData interface{}, expiration time.Duration) error {
-	key := "weather:" + location
-	jsonValue, err := json.Marshal(weatherData)
+func (s *RedisService) GetCallRecordByID(id string) (*models.CallRecord, error) {
+	var record models.CallRecord
+	key := "call_record:" + id
+	err := s.Get(key, &record)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	return s.Client.Set(s.Ctx, key, jsonValue, expiration).Err()
+	return &record, nil
 }
 
-// GetWeather gets weather data from cache
-func (s *RedisService) GetWeather(location string, dest interface{}) error {
-	key := "weather:" + location
-	val, err := s.Client.Get(s.Ctx, key).Result()
-	if err != nil {
-		return err
-	}
-
-	return json.Unmarshal([]byte(val), dest)
+// CacheCallRecord caches a call record with expiration
+func (s *RedisService) CacheCallRecord(record *models.CallRecord, expiration time.Duration) error {
+	key := fmt.Sprintf("call_record:%d", record.ID)
+	return s.Set(key, record, expiration)
 }

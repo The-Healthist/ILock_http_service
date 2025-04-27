@@ -20,7 +20,7 @@ RUN go mod download
 COPY . .
 
 # Build application
-RUN go build -o ilock_service
+RUN go build -o ilock_http_service
 
 # Run release
 FROM alpine:latest
@@ -31,14 +31,14 @@ WORKDIR /app
 RUN apk --no-cache add ca-certificates tzdata
 
 # Copy binary and config
-COPY --from=builder /app/ilock_service .
+COPY --from=builder /app/ilock_http_service .
 
 # Create logs directory
 RUN mkdir -p /app/logs
 
 # Set executable permissions
-RUN chmod +x /app/ilock_service
+RUN chmod +x /app/ilock_http_service
 
 EXPOSE 20033
 
-ENTRYPOINT ["./ilock_service"] 
+ENTRYPOINT ["./ilock_http_service"] 
