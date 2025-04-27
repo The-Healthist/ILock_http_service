@@ -61,6 +61,43 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    # 创建 .env 文件
+    - name: Create .env file
+      run: |
+        cat > .env << EOF
+        # 数据库配置
+        DB_HOST=db
+        DB_USER=root
+        DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+        DB_NAME=ilock_db
+        DB_PORT=3306
+        DB_TIMEZONE=Asia/Shanghai
+        DB_MIGRATION_MODE=alter
+
+        # MySQL配置
+        MYSQL_ROOT_PASSWORD=${{ secrets.DB_PASSWORD }}
+        MYSQL_DATABASE=ilock_db
+
+        # 服务器配置
+        SERVER_PORT=20033
+        TZ=Asia/Shanghai
+
+        # JWT配置
+        JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+
+        # Redis配置
+        REDIS_HOST=redis
+        REDIS_PORT=6379
+        REDIS_PASSWORD=
+        REDIS_DB=0
+
+        # 阿里云配置
+        ALIYUN_ACCESS_KEY_ID=${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+        ALIYUN_ACCESS_KEY_SECRET=${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+        ALIYUN_RTC_APP_ID=${{ secrets.ALIYUN_RTC_APP_ID }}
+        ALIYUN_RTC_REGION=cn-hangzhou
+        EOF
+
     - name: Copy deployment files
       uses: appleboy/scp-action@master
       with:
@@ -84,6 +121,10 @@ jobs:
           
           # 确保目录存在
           mkdir -p /root/ilock/logs
+          
+          # 确保 .env 文件存在并且有正确的权限
+          touch .env
+          chmod 600 .env
           
           # 配置 Docker 镜像加速器
           echo '{
@@ -141,7 +182,7 @@ jobs:
           echo "正在等待 MySQL 就绪..."
           for i in {1..30}; do
             if docker-compose ps db | grep -q "Up"; then
-              if docker exec ilock_mysql mysqladmin ping -h localhost -u root -p$MYSQL_ROOT_PASSWORD --silent; then
+              if docker exec ilock_mysql mysqladmin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" --silent; then
                 echo "MySQL 已就绪 (尝试 $i/30)"
                 break
               fi
