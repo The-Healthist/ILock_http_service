@@ -140,15 +140,15 @@ jobs:
           # 检查 MySQL 就绪状态
           echo "正在等待 MySQL 就绪..."
           for i in {1..30}; do
-            if docker-compose ps mysql | grep -q "Up"; then
-              if docker exec ilock_mysql mysqladmin ping -h localhost --silent; then
+            if docker-compose ps db | grep -q "Up"; then
+              if docker exec ilock_mysql mysqladmin ping -h localhost -u root -p$MYSQL_ROOT_PASSWORD --silent; then
                 echo "MySQL 已就绪 (尝试 $i/30)"
                 break
               fi
             fi
             if [ $i -eq 30 ]; then
               echo "MySQL 启动超时"
-              docker-compose logs mysql
+              docker-compose logs db
               exit 1
             fi
             echo "MySQL 启动中... (尝试 $i/30)"
