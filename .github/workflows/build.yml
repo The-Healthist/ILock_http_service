@@ -61,43 +61,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    # 创建 .env 文件
-    - name: Create .env file
-      run: |
-        cat > .env << EOF
-        # 数据库配置
-        DB_HOST=db
-        DB_USER=root
-        DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-        DB_NAME=ilock_db
-        DB_PORT=3306
-        DB_TIMEZONE=Asia/Shanghai
-        DB_MIGRATION_MODE=alter
-
-        # MySQL配置
-        MYSQL_ROOT_PASSWORD=${{ secrets.DB_PASSWORD }}
-        MYSQL_DATABASE=ilock_db
-
-        # 服务器配置
-        SERVER_PORT=20033
-        TZ=Asia/Shanghai
-
-        # JWT配置
-        JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-
-        # Redis配置
-        REDIS_HOST=redis
-        REDIS_PORT=6379
-        REDIS_PASSWORD=
-        REDIS_DB=0
-
-        # 阿里云配置
-        ALIYUN_ACCESS_KEY_ID=${{ secrets.ALIYUN_ACCESS_KEY_ID }}
-        ALIYUN_ACCESS_KEY_SECRET=${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
-        ALIYUN_RTC_APP_ID=${{ secrets.ALIYUN_RTC_APP_ID }}
-        ALIYUN_RTC_REGION=cn-hangzhou
-        EOF
-
     - name: Copy deployment files
       uses: appleboy/scp-action@master
       with:
@@ -105,7 +68,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         password: ${{ secrets.SSH_PASSWORD }}
         port: ${{ secrets.SSH_PORT }}
-        source: "docker-compose.yml,.env"
+        source: "docker-compose.yml"
         target: "/root/ilock"
         strip_components: 0
 
@@ -116,17 +79,63 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         password: ${{ secrets.SSH_PASSWORD }}
         port: ${{ secrets.SSH_PORT }}
+        envs: DB_PASSWORD,JWT_SECRET_KEY,ALIYUN_ACCESS_KEY_ID,ALIYUN_ACCESS_KEY_SECRET,ALIYUN_RTC_APP_ID
+        environment: |
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          ALIYUN_ACCESS_KEY_ID=${{ secrets.ALIYUN_ACCESS_KEY_ID }}
+          ALIYUN_ACCESS_KEY_SECRET=${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
+          ALIYUN_RTC_APP_ID=${{ secrets.ALIYUN_RTC_APP_ID }}
         script: |
           cd /root/ilock
           
           # 确保目录存在
           mkdir -p /root/ilock/logs
           
-          # 确保 .env 文件存在并且有正确的权限
+          # 创建并配置 .env 文件
+          cat > .env << EOF
+          # 数据库配置
+          DB_HOST=db
+          DB_USER=root
+          DB_PASSWORD=${DB_PASSWORD}
+          DB_NAME=ilock_db
+          DB_PORT=3306
+          DB_TIMEZONE=Asia/Shanghai
+          DB_MIGRATION_MODE=alter
+
+          # MySQL配置
+          MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+          MYSQL_DATABASE=ilock_db
+
+          # 服务器配置
+          SERVER_PORT=20033
+          TZ=Asia/Shanghai
+
+          # JWT配置
+          JWT_SECRET_KEY=${JWT_SECRET_KEY}
+
+          # Redis配置
+          REDIS_HOST=redis
+          REDIS_PORT=6379
+          REDIS_PASSWORD=
+          REDIS_DB=0
+
+          # 阿里云配置
+          ALIYUN_ACCESS_KEY_ID=${ALIYUN_ACCESS_KEY_ID}
+          ALIYUN_ACCESS_KEY_SECRET=${ALIYUN_ACCESS_KEY_SECRET}
+          ALIYUN_RTC_APP_ID=${ALIYUN_RTC_APP_ID}
+          ALIYUN_RTC_REGION=cn-hangzhou
+          EOF
+
+          # 设置 .env 文件权限
           chmod 600 .env
           
-          # 导出环境变量
-          export $(cat .env | grep -v '^#' | xargs)
+          # 验证环境变量文件
+          echo "验证 .env 文件内容..."
+          if ! grep -q "MYSQL_ROOT_PASSWORD=" .env || ! grep -q "JWT_SECRET_KEY=" .env; then
+            echo "错误：.env 文件缺少必要的配置"
+            exit 1
+          fi
           
           # 配置 Docker 镜像加速器
           echo '{
@@ -152,13 +161,6 @@ jobs:
           echo "清理旧镜像..."
           docker rmi docker.imgdb.de/stonesea/ilock-http-service:latest || true
           docker rmi stonesea/ilock-http-service:latest || true
-          
-          # 验证环境变量
-          echo "验证环境变量..."
-          if [ -z "$MYSQL_ROOT_PASSWORD" ]; then
-            echo "错误：MYSQL_ROOT_PASSWORD 未设置"
-            exit 1
-          fi
           
           # 拉取镜像（带重试机制）
           echo "开始拉取镜像..."
