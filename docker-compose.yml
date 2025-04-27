@@ -16,6 +16,12 @@ services:
       - redis
     networks:
       - ilock_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:20033/api/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   db:
     image: mysql:8.0
@@ -30,6 +36,11 @@ services:
     command: --default-authentication-plugin=mysql_native_password
     networks:
       - ilock_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   redis:
     image: redis:7.0-alpine
@@ -41,6 +52,11 @@ services:
       - redis_data:/data
     networks:
       - ilock_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
 networks:
   ilock_network:

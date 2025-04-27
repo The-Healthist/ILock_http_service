@@ -9,6 +9,7 @@ on:
 env:
   GO_VERSION: '1.21'
   DOCKER_IMAGE: stonesea/ilock-service
+  DOCKER_REGISTRY: docker.imgdb.de
 
 jobs:
   build:
@@ -84,48 +85,112 @@ jobs:
           # 确保目录存在
           mkdir -p /root/ilock/logs
           
+          # 配置 Docker 镜像加速器
+          echo '{
+            "registry-mirrors": [
+              "https://docker.imgdb.de"
+            ]
+          }' | sudo tee /etc/docker/daemon.json
+          
+          # 重启 Docker 服务
+          sudo systemctl daemon-reload
+          sudo systemctl restart docker
+          
+          # 修改镜像地址为加速源地址
+          sed -i "s|image: stonesea/ilock-service:latest|image: docker.imgdb.de/stonesea/ilock-service:latest|g" docker-compose.yml
+          sed -i "s|image: mysql:8.0|image: docker.imgdb.de/mysql:8.0|g" docker-compose.yml
+          sed -i "s|image: redis:7.0-alpine|image: docker.imgdb.de/redis:7.0-alpine|g" docker-compose.yml
+          
           # 停止并删除所有相关容器
           docker-compose down --volumes --remove-orphans || true
           
           # 删除旧的镜像
+          docker rmi docker.imgdb.de/stonesea/ilock-service:latest || true
           docker rmi stonesea/ilock-service:latest || true
           
-          # 登录到 Docker Hub
-          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+          # 拉取镜像（带重试机制）
+          max_retries=5
+          retry_count=0
           
-          # 拉取新镜像
-          docker-compose pull
+          while [ $retry_count -lt $max_retries ]; do
+            if docker-compose pull; then
+              echo "镜像拉取成功"
+              break
+            else
+              retry_count=$((retry_count+1))
+              if [ $retry_count -eq $max_retries ]; then
+                echo "镜像拉取失败，已达到最大重试次数"
+                exit 1
+              fi
+              echo "镜像拉取失败，等待 10 秒后进行第 $retry_count 次重试..."
+              sleep 10
+            fi
+          done
           
           # 启动服务
           docker-compose up -d
           
           # 等待服务启动
-          echo "Waiting for service to start..."
-          sleep 15
+          echo "等待服务启动..."
+          sleep 20
           
           # 检查容器状态
-          docker ps
+          docker-compose ps
           
-          # 健康检查
+          # 等待 MySQL 就绪
+          echo "等待 MySQL 就绪..."
           for i in {1..30}; do
-            if curl -s http://localhost:20033/api/ping > /dev/null; then
-              echo "Service is up!"
+            if docker exec ilock_mysql mysqladmin ping -h localhost > /dev/null 2>&1; then
+              echo "MySQL 已就绪"
+              break
+            fi
+            echo "MySQL 未就绪，等待..."
+            sleep 2
+          done
+          
+          # 等待 Redis 就绪
+          echo "等待 Redis 就绪..."
+          for i in {1..30}; do
+            if docker exec ilock_redis redis-cli ping > /dev/null 2>&1; then
+              echo "Redis 已就绪"
+              break
+            fi
+            echo "Redis 未就绪，等待..."
+            sleep 2
+          done
+          
+          # 检查应用服务健康状态
+          echo "检查应用服务健康状态..."
+          for i in {1..30}; do
+            if curl -s http://localhost:20033/api/ping > /dev/null 2>&1; then
+              echo "应用服务启动成功！"
+              echo "所有服务状态："
+              docker-compose ps
+              
+              # 恢复原始配置
+              sed -i "s|image: docker.imgdb.de/stonesea/ilock-service:latest|image: stonesea/ilock-service:latest|g" docker-compose.yml
+              sed -i "s|image: docker.imgdb.de/mysql:8.0|image: mysql:8.0|g" docker-compose.yml
+              sed -i "s|image: docker.imgdb.de/redis:7.0-alpine|image: redis:7.0-alpine|g" docker-compose.yml
+              
               exit 0
             fi
-            echo "Attempt $i/30: Service not ready yet..."
+            echo "尝试 $i/30: 应用服务未就绪..."
             
-            # 显示容器日志
-            echo "Container logs:"
-            docker-compose logs --tail=50 app
-            
-            # 检查容器状态
-            docker ps
+            # 显示应用日志
+            echo "应用日志："
+            docker logs ilock_app --tail=20
             
             sleep 2
           done
           
-          echo "Service failed to start"
-          echo "Full container logs:"
-          docker-compose logs
-          docker ps
+          # 恢复原始配置（即使失败也要恢复）
+          sed -i "s|image: docker.imgdb.de/stonesea/ilock-service:latest|image: stonesea/ilock-service:latest|g" docker-compose.yml
+          sed -i "s|image: docker.imgdb.de/mysql:8.0|image: mysql:8.0|g" docker-compose.yml
+          sed -i "s|image: docker.imgdb.de/redis:7.0-alpine|image: redis:7.0-alpine|g" docker-compose.yml
+          
+          echo "服务启动失败"
+          echo "应用服务日志："
+          docker logs ilock_app
+          echo "容器状态："
+          docker-compose ps
           exit 1 
