@@ -28,7 +28,7 @@
 - `SSH_HOST`: 您的服务器IP地址，例如 39.108.49.167
 - `SSH_PORT`: SSH端口，默认为 22
 - `SSH_USERNAME`: SSH用户名，例如 root
-- `SSH_PASSWORD`: SSH密码
+- `SSH_PASSWORD`:  
 
 ### 2. 准备服务器
 
