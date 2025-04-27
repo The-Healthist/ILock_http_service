@@ -79,63 +79,11 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         password: ${{ secrets.SSH_PASSWORD }}
         port: ${{ secrets.SSH_PORT }}
-        envs: DB_PASSWORD,JWT_SECRET_KEY,ALIYUN_ACCESS_KEY_ID,ALIYUN_ACCESS_KEY_SECRET,ALIYUN_RTC_APP_ID
-        environment: |
-          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-          ALIYUN_ACCESS_KEY_ID=${{ secrets.ALIYUN_ACCESS_KEY_ID }}
-          ALIYUN_ACCESS_KEY_SECRET=${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}
-          ALIYUN_RTC_APP_ID=${{ secrets.ALIYUN_RTC_APP_ID }}
         script: |
           cd /root/ilock
           
           # 确保目录存在
           mkdir -p /root/ilock/logs
-          
-          # 创建并配置 .env 文件
-          cat > .env << EOF
-          # 数据库配置
-          DB_HOST=db
-          DB_USER=root
-          DB_PASSWORD=${DB_PASSWORD}
-          DB_NAME=ilock_db
-          DB_PORT=3306
-          DB_TIMEZONE=Asia/Shanghai
-          DB_MIGRATION_MODE=alter
-
-          # MySQL配置
-          MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
-          MYSQL_DATABASE=ilock_db
-
-          # 服务器配置
-          SERVER_PORT=20033
-          TZ=Asia/Shanghai
-
-          # JWT配置
-          JWT_SECRET_KEY=${JWT_SECRET_KEY}
-
-          # Redis配置
-          REDIS_HOST=redis
-          REDIS_PORT=6379
-          REDIS_PASSWORD=
-          REDIS_DB=0
-
-          # 阿里云配置
-          ALIYUN_ACCESS_KEY_ID=${ALIYUN_ACCESS_KEY_ID}
-          ALIYUN_ACCESS_KEY_SECRET=${ALIYUN_ACCESS_KEY_SECRET}
-          ALIYUN_RTC_APP_ID=${ALIYUN_RTC_APP_ID}
-          ALIYUN_RTC_REGION=cn-hangzhou
-          EOF
-
-          # 设置 .env 文件权限
-          chmod 600 .env
-          
-          # 验证环境变量文件
-          echo "验证 .env 文件内容..."
-          if ! grep -q "MYSQL_ROOT_PASSWORD=" .env || ! grep -q "JWT_SECRET_KEY=" .env; then
-            echo "错误：.env 文件缺少必要的配置"
-            exit 1
-          fi
           
           # 配置 Docker 镜像加速器
           echo '{
@@ -184,7 +132,7 @@ jobs:
           
           # 启动服务
           echo "启动服务..."
-          docker-compose --env-file .env up -d
+          docker-compose up -d
           
           # 等待并检查服务启动状态
           echo "等待服务启动并检查状态..."
@@ -193,7 +141,7 @@ jobs:
           echo "正在等待 MySQL 就绪..."
           for i in {1..30}; do
             if docker-compose ps db | grep -q "Up"; then
-              if docker exec ilock_mysql mysqladmin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" --silent; then
+              if docker exec ilock_mysql mysqladmin ping -h localhost --silent; then
                 echo "MySQL 已就绪 (尝试 $i/30)"
                 break
               fi
