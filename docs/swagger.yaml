@@ -333,8 +333,6 @@ definitions:
         $ref: '#/definitions/models.DeviceStatus'
       updated_at:
         type: string
-      weather:
-        $ref: '#/definitions/models.Weather'
     type: object
   models.DeviceStatus:
     enum:
@@ -441,48 +439,6 @@ definitions:
       phone:
         type: string
       updated_at:
-        type: string
-    type: object
-  models.SystemLog:
-    properties:
-      created_at:
-        type: string
-      id:
-        type: integer
-      level:
-        type: string
-      message:
-        type: string
-      source:
-        type: string
-      updated_at:
-        type: string
-    type: object
-  models.Weather:
-    properties:
-      device:
-        allOf:
-        - $ref: '#/definitions/models.Device'
-        description: Relations
-      device_id:
-        description: One-to-one with device
-        type: integer
-      humidity:
-        type: number
-      id:
-        type: integer
-      temperature:
-        type: number
-      updated_at:
-        type: string
-      warning:
-        description: Weather warnings
-        type: string
-      weather:
-        description: Sunny, cloudy, rain, etc.
-        type: string
-      wind:
-        description: Wind description
         type: string
     type: object
 host: localhost:8080

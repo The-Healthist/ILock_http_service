@@ -68,7 +68,7 @@ jobs:
         username: ${{ secrets.SSH_USERNAME }}
         password: ${{ secrets.SSH_PASSWORD }}
         port: ${{ secrets.SSH_PORT }}
-        source: "docker-compose.yml"
+        source: "docker-compose.yml .env"
         target: "/root/ilock"
         strip_components: 0
 
@@ -88,7 +88,7 @@ jobs:
           # 配置 Docker 镜像加速器
           echo '{
             "registry-mirrors": [
-              "https://docker.imgdb.de"
+              "https://registry.cn-hangzhou.aliyuncs.com"
             ]
           }' | sudo tee /etc/docker/daemon.json
           
@@ -96,18 +96,12 @@ jobs:
           sudo systemctl daemon-reload
           sudo systemctl restart docker
           
-          # 修改镜像地址为加速源地址
-          sed -i "s|image: stonesea/ilock-http-service:latest|image: docker.imgdb.de/stonesea/ilock-http-service:latest|g" docker-compose.yml
-          sed -i "s|image: mysql:8.0|image: docker.imgdb.de/mysql:8.0|g" docker-compose.yml
-          sed -i "s|image: redis:7.0-alpine|image: docker.imgdb.de/redis:7.0-alpine|g" docker-compose.yml
-          
           # 停止并删除所有相关容器
           echo "停止并清理现有服务..."
           docker-compose down --volumes --remove-orphans || true
           
           # 删除旧的镜像
           echo "清理旧镜像..."
-          docker rmi docker.imgdb.de/stonesea/ilock-http-service:latest || true
           docker rmi stonesea/ilock-http-service:latest || true
           
           # 拉取镜像（带重试机制）
@@ -182,11 +176,6 @@ jobs:
                 echo "所有服务状态："
                 docker-compose ps
                 
-                # 恢复原始配置
-                sed -i "s|image: docker.imgdb.de/stonesea/ilock-http-service:latest|image: stonesea/ilock-http-service:latest|g" docker-compose.yml
-                sed -i "s|image: docker.imgdb.de/mysql:8.0|image: mysql:8.0|g" docker-compose.yml
-                sed -i "s|image: docker.imgdb.de/redis:7.0-alpine|image: redis:7.0-alpine|g" docker-compose.yml
-                
                 exit 0
               fi
             fi
@@ -205,11 +194,6 @@ jobs:
             fi
             sleep 2
           done
-          
-          # 恢复原始配置（即使失败也要恢复）
-          sed -i "s|image: docker.imgdb.de/stonesea/ilock-http-service:latest|image: stonesea/ilock-http-service:latest|g" docker-compose.yml
-          sed -i "s|image: docker.imgdb.de/mysql:8.0|image: mysql:8.0|g" docker-compose.yml
-          sed -i "s|image: docker.imgdb.de/redis:7.0-alpine|image: redis:7.0-alpine|g" docker-compose.yml
           
           echo "服务启动失败"
           echo "完整服务状态："

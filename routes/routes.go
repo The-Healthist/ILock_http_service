@@ -18,11 +18,24 @@ func SetupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	// 初始化 Gin
 	r := gin.Default()
 
+	// 添加 CORS 中间件
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:20033")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
+
 	// 设置正确的Content-Type，确保UTF-8编码
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		// 自定义JSON响应编码
 		c.Next()
 	})
 

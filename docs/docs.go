@@ -2275,9 +2275,6 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
-                },
-                "weather": {
-                    "$ref": "#/definitions/models.Weather"
                 }
             }
         },
@@ -2436,47 +2433,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.Weather": {
-            "type": "object",
-            "properties": {
-                "device": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Device"
-                        }
-                    ]
-                },
-                "device_id": {
-                    "description": "One-to-one with device",
-                    "type": "integer"
-                },
-                "humidity": {
-                    "type": "number"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "temperature": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "warning": {
-                    "description": "Weather warnings",
-                    "type": "string"
-                },
-                "weather": {
-                    "description": "Sunny, cloudy, rain, etc.",
-                    "type": "string"
-                },
-                "wind": {
-                    "description": "Wind description",
                     "type": "string"
                 }
             }
