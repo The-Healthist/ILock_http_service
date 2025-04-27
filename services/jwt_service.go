@@ -4,15 +4,37 @@ import (
 	"errors"
 	"fmt"
 	"ilock-http-service/config"
+	"ilock-http-service/models"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
+
+// InterfaceJWTService 定义JWT服务接口
+type InterfaceJWTService interface {
+	GenerateToken(userID uint, role string, propertyID, deviceID *uint) (string, error)
+	ValidateToken(tokenString string) (*jwt.Token, error)
+	ExtractClaims(tokenString string) (*JWTClaims, error)
+	Login(username, password string) (*LoginResult, error)
+}
+
+// LoginResult 表示登录结果
+type LoginResult struct {
+	Token     string      `json:"token"`
+	UserID    uint        `json:"user_id"`
+	Role      string      `json:"role"`
+	Username  string      `json:"username"`
+	Phone     string      `json:"phone,omitempty"`
+	CreatedAt interface{} `json:"created_at"`
+}
 
 // JWTService 提供JWT相关服务
 type JWTService struct {
 	secretKey string
 	issuer    string
+	DB        *gorm.DB
 }
 
 // JWTClaims 定义JWT令牌的声明结构
@@ -25,10 +47,11 @@ type JWTClaims struct {
 }
 
 // NewJWTService 创建一个新的JWT服务
-func NewJWTService(cfg *config.Config) *JWTService {
+func NewJWTService(cfg *config.Config, db *gorm.DB) InterfaceJWTService {
 	return &JWTService{
 		secretKey: cfg.JWTSecretKey,
 		issuer:    "ilock-http-service",
+		DB:        db,
 	}
 }
 
@@ -106,4 +129,110 @@ func (s *JWTService) ExtractClaims(tokenString string) (*JWTClaims, error) {
 	}
 
 	return nil, errors.New("invalid token claims")
+}
+
+// Login 处理用户登录请求
+func (s *JWTService) Login(username, password string) (*LoginResult, error) {
+	// 尝试查找管理员用户
+	var admin models.Admin
+	if err := s.DB.Where("username = ?", username).First(&admin).Error; err == nil {
+		// 比较密码
+		if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(password)); err == nil {
+			// 生成管理员令牌
+			token, err := s.GenerateToken(admin.ID, "admin", nil, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			return &LoginResult{
+				Token:     token,
+				UserID:    admin.ID,
+				Role:      "admin",
+				Username:  admin.Username,
+				CreatedAt: admin.CreatedAt,
+			}, nil
+		}
+	}
+
+	// 尝试查找物业人员
+	var staff models.PropertyStaff
+	if err := s.DB.Where("username = ?", username).First(&staff).Error; err == nil {
+		// 获取密码字段
+		var dbPassword string
+
+		// 使用原始查询获取所需字段
+		row := s.DB.Table("property_staffs").
+			Select("password").
+			Where("id = ?", staff.ID).
+			Row()
+
+		if err := row.Scan(&dbPassword); err != nil {
+			return nil, err
+		}
+
+		// 比较密码
+		if err := bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password)); err == nil {
+			// 生成物业人员令牌
+			token, err := s.GenerateToken(staff.ID, "staff", nil, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			// 获取用户名
+			var username string
+			s.DB.Table("property_staffs").
+				Select("username").
+				Where("id = ?", staff.ID).
+				Row().
+				Scan(&username)
+
+			return &LoginResult{
+				Token:     token,
+				UserID:    staff.ID,
+				Role:      "staff",
+				Username:  username,
+				CreatedAt: staff.CreatedAt,
+			}, nil
+		}
+	}
+
+	// 尝试查找普通居民
+	var resident models.Resident
+	if err := s.DB.Where("phone = ?", username).First(&resident).Error; err == nil {
+		// 获取密码字段和其他信息
+		var dbPassword string
+		var name string
+		var phone string
+
+		// 使用原始查询获取所需字段
+		row := s.DB.Table("residents").
+			Select("password, name, phone").
+			Where("id = ?", resident.ID).
+			Row()
+
+		if err := row.Scan(&dbPassword, &name, &phone); err != nil {
+			return nil, err
+		}
+
+		// 比较密码
+		if err := bcrypt.CompareHashAndPassword([]byte(dbPassword), []byte(password)); err == nil {
+			// 生成居民令牌
+			token, err := s.GenerateToken(resident.ID, "user", nil, nil)
+			if err != nil {
+				return nil, err
+			}
+
+			return &LoginResult{
+				Token:     token,
+				UserID:    resident.ID,
+				Role:      "user",
+				Username:  name,
+				Phone:     phone,
+				CreatedAt: resident.CreatedAt,
+			}, nil
+		}
+	}
+
+	// 用户名或密码无效
+	return nil, errors.New("invalid username or password")
 }

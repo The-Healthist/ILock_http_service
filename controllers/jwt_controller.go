@@ -3,17 +3,30 @@ package controllers
 import (
 	"ilock-http-service/models"
 	"ilock-http-service/services"
+	"ilock-http-service/services/container"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
-// AuthController 处理身份验证请求
-type AuthController struct {
-	DB         *gorm.DB
-	JWTService *services.JWTService
+// InterfaceJWTController 定义认证控制器接口
+type InterfaceJWTController interface {
+	Login()
+}
+
+// JWTController 处理身份验证请求
+type JWTController struct {
+	Ctx       *gin.Context
+	Container *container.ServiceContainer
+}
+
+// NewJWTController 创建一个新的认证控制器
+func NewJWTController(ctx *gin.Context, container *container.ServiceContainer) *JWTController {
+	return &JWTController{
+		Ctx:       ctx,
+		Container: container,
+	}
 }
 
 // LoginRequest 表示登录请求
@@ -45,11 +58,21 @@ type ErrorResponse struct {
 	Data    interface{} `json:"data"`
 }
 
-// NewAuthController 创建一个新的认证控制器
-func NewAuthController(db *gorm.DB, jwtService *services.JWTService) *AuthController {
-	return &AuthController{
-		DB:         db,
-		JWTService: jwtService,
+// HandleJWTFunc 返回一个处理JWT认证请求的Gin处理函数
+func HandleJWTFunc(container *container.ServiceContainer, method string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		controller := NewJWTController(ctx, container)
+
+		switch method {
+		case "login":
+			controller.Login()
+		default:
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "无效的方法",
+				"data":    nil,
+			})
+		}
 	}
 }
 
@@ -65,10 +88,10 @@ func NewAuthController(db *gorm.DB, jwtService *services.JWTService) *AuthContro
 // @Failure      401  {object}  ErrorResponse  "Unauthorized"
 // @Failure      500  {object}  ErrorResponse  "Internal server error"
 // @Router       /auth/login [post]
-func (c *AuthController) Login(ctx *gin.Context) {
+func (c *JWTController) Login() {
 	var req LoginRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "Invalid request parameters",
 			"data":    nil,
@@ -76,15 +99,20 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
+	// 获取数据库连接
+	db := c.Container.GetDB()
+	// 获取JWT服务
+	jwtService := c.Container.GetService("jwt").(*services.JWTService)
+
 	// 尝试查找管理员用户
 	var admin models.Admin
-	if err := c.DB.Where("username = ?", req.Username).First(&admin).Error; err == nil {
+	if err := db.Where("username = ?", req.Username).First(&admin).Error; err == nil {
 		// 比较密码
 		if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(req.Password)); err == nil {
 			// 生成管理员令牌
-			token, err := c.JWTService.GenerateToken(admin.ID, "admin", nil, nil)
+			token, err := jwtService.GenerateToken(admin.ID, "admin", nil, nil)
 			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{
+				c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 					"code":    500,
 					"message": "Failed to generate token",
 					"data":    nil,
@@ -92,7 +120,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 				return
 			}
 
-			ctx.JSON(http.StatusOK, gin.H{
+			c.Ctx.JSON(http.StatusOK, gin.H{
 				"code":    0,
 				"message": "Login successful",
 				"data": gin.H{
@@ -109,18 +137,18 @@ func (c *AuthController) Login(ctx *gin.Context) {
 
 	// 尝试查找物业人员
 	var staff models.PropertyStaff
-	if err := c.DB.Where("username = ?", req.Username).First(&staff).Error; err == nil {
+	if err := db.Where("username = ?", req.Username).First(&staff).Error; err == nil {
 		// 获取密码字段
 		var password string
 
 		// 使用原始查询获取所需字段，移除对不存在的property_id的引用
-		row := c.DB.Table("property_staffs").
+		row := db.Table("property_staffs").
 			Select("password").
 			Where("id = ?", staff.ID).
 			Row()
 
 		if err := row.Scan(&password); err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
+			c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 				"code":    500,
 				"message": "Database error: " + err.Error(),
 				"data":    nil,
@@ -131,9 +159,9 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		// 比较密码
 		if err := bcrypt.CompareHashAndPassword([]byte(password), []byte(req.Password)); err == nil {
 			// 生成物业人员令牌，不再传递propertyID
-			token, err := c.JWTService.GenerateToken(staff.ID, "staff", nil, nil)
+			token, err := jwtService.GenerateToken(staff.ID, "staff", nil, nil)
 			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{
+				c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 					"code":    500,
 					"message": "Failed to generate token",
 					"data":    nil,
@@ -143,13 +171,13 @@ func (c *AuthController) Login(ctx *gin.Context) {
 
 			// 获取用户名
 			var username string
-			c.DB.Table("property_staffs").
+			db.Table("property_staffs").
 				Select("username").
 				Where("id = ?", staff.ID).
 				Row().
 				Scan(&username)
 
-			ctx.JSON(http.StatusOK, gin.H{
+			c.Ctx.JSON(http.StatusOK, gin.H{
 				"code":    0,
 				"message": "Login successful",
 				"data": gin.H{
@@ -166,20 +194,20 @@ func (c *AuthController) Login(ctx *gin.Context) {
 
 	// 尝试查找普通居民
 	var resident models.Resident
-	if err := c.DB.Where("phone = ?", req.Username).First(&resident).Error; err == nil {
+	if err := db.Where("phone = ?", req.Username).First(&resident).Error; err == nil {
 		// 获取密码字段
 		var password string
 		var name string
 		var phone string
 
 		// 使用原始查询获取所需字段
-		row := c.DB.Table("residents").
+		row := db.Table("residents").
 			Select("password, name, phone").
 			Where("id = ?", resident.ID).
 			Row()
 
 		if err := row.Scan(&password, &name, &phone); err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{
+			c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 				"code":    500,
 				"message": "Database error: " + err.Error(),
 				"data":    nil,
@@ -190,9 +218,9 @@ func (c *AuthController) Login(ctx *gin.Context) {
 		// 比较密码
 		if err := bcrypt.CompareHashAndPassword([]byte(password), []byte(req.Password)); err == nil {
 			// 生成居民令牌
-			token, err := c.JWTService.GenerateToken(resident.ID, "user", nil, nil)
+			token, err := jwtService.GenerateToken(resident.ID, "user", nil, nil)
 			if err != nil {
-				ctx.JSON(http.StatusInternalServerError, gin.H{
+				c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 					"code":    500,
 					"message": "Failed to generate token",
 					"data":    nil,
@@ -200,7 +228,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 				return
 			}
 
-			ctx.JSON(http.StatusOK, gin.H{
+			c.Ctx.JSON(http.StatusOK, gin.H{
 				"code":    0,
 				"message": "Login successful",
 				"data": gin.H{
@@ -217,7 +245,7 @@ func (c *AuthController) Login(ctx *gin.Context) {
 	}
 
 	// 用户名或密码无效
-	ctx.JSON(http.StatusUnauthorized, gin.H{
+	c.Ctx.JSON(http.StatusUnauthorized, gin.H{
 		"code":    401,
 		"message": "Invalid username or password",
 		"data":    nil,

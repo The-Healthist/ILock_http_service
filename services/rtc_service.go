@@ -13,6 +13,13 @@ import (
 	"time"
 )
 
+// InterfaceRTCService defines the RTC service interface
+type InterfaceRTCService interface {
+	GetToken(channelID, userID string) (*RTCTokenInfo, error)
+	CreateVideoCall(deviceID, residentID string) (string, error)
+	ParseToken(tokenStr string) (AppToken, error)
+}
+
 // 常量
 const (
 	VENSION_LENGTH       = 3
@@ -69,13 +76,13 @@ type AppToken struct {
 }
 
 // NewRTCService 创建一个新的阿里云RTC服务
-func NewRTCService(cfg *config.Config) *RTCService {
+func NewRTCService(cfg *config.Config) InterfaceRTCService {
 	return &RTCService{
 		Config: cfg,
 	}
 }
 
-// GetToken 生成一个用于阿里云RTC的令牌
+// 1 GetToken 生成一个用于阿里云RTC的令牌
 func (s *RTCService) GetToken(channelID, userID string) (*RTCTokenInfo, error) {
 	// 检查是否需要配置
 	if s.Config.AliyunAccessKey == "" || s.Config.AliyunRTCAppID == "" {
@@ -128,7 +135,7 @@ func (s *RTCService) GetToken(channelID, userID string) (*RTCTokenInfo, error) {
 	return tokenInfo, nil
 }
 
-// CreateVideoCall initiates a video call between a door device and a resident
+// 2 CreateVideoCall initiates a video call between a door device and a resident
 func (s *RTCService) CreateVideoCall(deviceID, residentID string) (string, error) {
 	// Generate a unique channel ID based on device ID and timestamp
 	channelID := fmt.Sprintf("%s_%s_%d", deviceID, residentID, time.Now().Unix())
@@ -517,7 +524,7 @@ func UnpackTokenOptions(buf io.Reader) (*TokenOptions, error) {
 	return options, nil
 }
 
-// ParseToken parses a token string back into an AppToken
+// 3 ParseToken parses a token string back into an AppToken
 func (s *RTCService) ParseToken(tokenStr string) (AppToken, error) {
 	appToken := AppToken{}
 	if len(tokenStr) <= VENSION_LENGTH || tokenStr[0:VENSION_LENGTH] != VERSION_0 {

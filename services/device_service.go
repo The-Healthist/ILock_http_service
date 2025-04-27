@@ -8,6 +8,19 @@ import (
 	"gorm.io/gorm"
 )
 
+// InterfaceDeviceService defines the device service interface
+type InterfaceDeviceService interface {
+	GetAllDevices() ([]models.Device, error)
+	GetDeviceByID(id uint) (*models.Device, error)
+	CreateDevice(device *models.Device) error
+	UpdateDevice(id uint, updates map[string]interface{}) (*models.Device, error)
+	DeleteDevice(id uint) error
+	GetDeviceStatus(id uint) (string, error)
+	UpdateDeviceConfiguration(id uint, config map[string]interface{}) error
+	RebootDevice(id uint) error
+	UnlockDevice(id uint) error
+}
+
 // DeviceService 提供设备相关的服务
 type DeviceService struct {
 	DB     *gorm.DB
@@ -15,14 +28,14 @@ type DeviceService struct {
 }
 
 // NewDeviceService 创建一个新的设备服务
-func NewDeviceService(db *gorm.DB, cfg *config.Config) *DeviceService {
+func NewDeviceService(db *gorm.DB, cfg *config.Config) InterfaceDeviceService {
 	return &DeviceService{
 		DB:     db,
 		Config: cfg,
 	}
 }
 
-// GetAllDevices 获取所有设备列表
+// 1 GetAllDevices 获取所有设备列表
 func (s *DeviceService) GetAllDevices() ([]models.Device, error) {
 	var devices []models.Device
 	if err := s.DB.Preload("Staff").Find(&devices).Error; err != nil {
@@ -32,7 +45,7 @@ func (s *DeviceService) GetAllDevices() ([]models.Device, error) {
 	return devices, nil
 }
 
-// GetDeviceByID 根据ID获取设备
+// 2 GetDeviceByID 根据ID获取设备
 func (s *DeviceService) GetDeviceByID(id uint) (*models.Device, error) {
 	var device models.Device
 	if err := s.DB.Preload("Staff").First(&device, id).Error; err != nil {
@@ -45,7 +58,7 @@ func (s *DeviceService) GetDeviceByID(id uint) (*models.Device, error) {
 	return &device, nil
 }
 
-// CreateDevice 创建新设备
+// 3 CreateDevice 创建新设备
 func (s *DeviceService) CreateDevice(device *models.Device) error {
 	// 验证序列号唯一性
 	var count int64
@@ -64,7 +77,7 @@ func (s *DeviceService) CreateDevice(device *models.Device) error {
 	return s.DB.Create(device).Error
 }
 
-// UpdateDevice 更新设备信息
+// 4 UpdateDevice 更新设备信息
 func (s *DeviceService) UpdateDevice(id uint, updates map[string]interface{}) (*models.Device, error) {
 	device, err := s.GetDeviceByID(id)
 	if err != nil {
@@ -90,7 +103,7 @@ func (s *DeviceService) UpdateDevice(id uint, updates map[string]interface{}) (*
 	return s.GetDeviceByID(id)
 }
 
-// DeleteDevice 删除设备
+// 5 DeleteDevice 删除设备
 func (s *DeviceService) DeleteDevice(id uint) error {
 	device, err := s.GetDeviceByID(id)
 	if err != nil {
@@ -99,7 +112,7 @@ func (s *DeviceService) DeleteDevice(id uint) error {
 	return s.DB.Delete(device).Error
 }
 
-// GetDeviceStatus 获取设备状态 (TODO: 硬件集成)
+// 6 GetDeviceStatus 获取设备状态 (TODO: 硬件集成)
 func (s *DeviceService) GetDeviceStatus(id uint) (string, error) {
 	device, err := s.GetDeviceByID(id)
 	if err != nil {
@@ -109,7 +122,7 @@ func (s *DeviceService) GetDeviceStatus(id uint) (string, error) {
 	return string(device.Status), nil
 }
 
-// UpdateDeviceConfiguration 更新设备配置 (TODO: 硬件集成)
+// 7 UpdateDeviceConfiguration 更新设备配置 (TODO: 硬件集成)
 func (s *DeviceService) UpdateDeviceConfiguration(id uint, config map[string]interface{}) error {
 	_, err := s.GetDeviceByID(id)
 	if err != nil {
@@ -119,7 +132,7 @@ func (s *DeviceService) UpdateDeviceConfiguration(id uint, config map[string]int
 	return errors.New("功能尚未实现，需要硬件集成")
 }
 
-// RebootDevice 重启设备 (TODO: 硬件集成)
+// 8 RebootDevice 重启设备 (TODO: 硬件集成)
 func (s *DeviceService) RebootDevice(id uint) error {
 	_, err := s.GetDeviceByID(id)
 	if err != nil {
@@ -129,7 +142,7 @@ func (s *DeviceService) RebootDevice(id uint) error {
 	return errors.New("功能尚未实现，需要硬件集成")
 }
 
-// UnlockDevice 远程开门 (TODO: 硬件集成)
+// 9 UnlockDevice 远程开门 (TODO: 硬件集成)
 func (s *DeviceService) UnlockDevice(id uint) error {
 	_, err := s.GetDeviceByID(id)
 	if err != nil {

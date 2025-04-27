@@ -4,9 +4,21 @@ import (
 	"errors"
 	"ilock-http-service/config"
 	"ilock-http-service/models"
+	"ilock-http-service/utils"
 
 	"gorm.io/gorm"
 )
+
+// InterfaceStaffService defines the staff service interface
+type InterfaceStaffService interface {
+	GetAllStaff(page, pageSize int, search string) ([]models.PropertyStaff, int64, error)
+	GetStaffByID(id uint) (*models.PropertyStaff, error)
+	CreateStaff(staff *models.PropertyStaff) error
+	UpdateStaff(id uint, updates map[string]interface{}) (*models.PropertyStaff, error)
+	DeleteStaff(id uint) error
+	GetStaffDevices(staffID uint) ([]models.Device, error)
+	GetStaffByIDWithDevices(id uint) (*models.PropertyStaff, error)
+}
 
 // StaffService 提供物业人员相关的服务
 type StaffService struct {
@@ -15,14 +27,14 @@ type StaffService struct {
 }
 
 // NewStaffService 创建一个新的物业人员服务
-func NewStaffService(db *gorm.DB, cfg *config.Config) *StaffService {
+func NewStaffService(db *gorm.DB, cfg *config.Config) InterfaceStaffService {
 	return &StaffService{
 		DB:     db,
 		Config: cfg,
 	}
 }
 
-// GetAllStaff 获取所有物业人员，支持分页和搜索
+// 1 GetAllStaff 获取所有物业人员，支持分页和搜索
 func (s *StaffService) GetAllStaff(page, pageSize int, search string) ([]models.PropertyStaff, int64, error) {
 	var staff []models.PropertyStaff
 	var total int64
@@ -49,19 +61,19 @@ func (s *StaffService) GetAllStaff(page, pageSize int, search string) ([]models.
 	return staff, total, nil
 }
 
-// GetStaffByID 根据ID获取物业人员
+// 2 GetStaffByID 根据ID获取物业人员
 func (s *StaffService) GetStaffByID(id uint) (*models.PropertyStaff, error) {
 	var staff models.PropertyStaff
 	if err := s.DB.First(&staff, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("物业人员不存在")
+			return nil, errors.New("物业员工不存在")
 		}
 		return nil, err
 	}
 	return &staff, nil
 }
 
-// CreateStaff 创建新物业人员
+// 3 CreateStaff 创建新物业人员
 func (s *StaffService) CreateStaff(staff *models.PropertyStaff) error {
 	// 验证手机号唯一性
 	var count int64
@@ -81,7 +93,7 @@ func (s *StaffService) CreateStaff(staff *models.PropertyStaff) error {
 	}
 
 	// 处理密码（在实际应用中应该进行哈希处理）
-	hashedPassword, err := models.HashPassword(staff.Password)
+	hashedPassword, err := utils.HashPassword(staff.Password)
 	if err != nil {
 		return errors.New("密码加密失败")
 	}
@@ -90,7 +102,7 @@ func (s *StaffService) CreateStaff(staff *models.PropertyStaff) error {
 	return s.DB.Create(staff).Error
 }
 
-// UpdateStaff 更新物业人员信息
+// 4 UpdateStaff 更新物业人员信息
 func (s *StaffService) UpdateStaff(id uint, updates map[string]interface{}) (*models.PropertyStaff, error) {
 	staff, err := s.GetStaffByID(id)
 	if err != nil {
@@ -104,7 +116,7 @@ func (s *StaffService) UpdateStaff(id uint, updates map[string]interface{}) (*mo
 			return nil, err
 		}
 		if count > 0 {
-			return nil, errors.New("手机号已被其他物业人员使用")
+			return nil, errors.New("手机号已被其他物业员工使用")
 		}
 	}
 
@@ -115,13 +127,13 @@ func (s *StaffService) UpdateStaff(id uint, updates map[string]interface{}) (*mo
 			return nil, err
 		}
 		if count > 0 {
-			return nil, errors.New("用户名已被其他物业人员使用")
+			return nil, errors.New("用户名已被其他物业员工使用")
 		}
 	}
 
 	// 如果更新密码，需要进行哈希处理
 	if password, ok := updates["password"].(string); ok {
-		hashedPassword, err := models.HashPassword(password)
+		hashedPassword, err := utils.HashPassword(password)
 		if err != nil {
 			return nil, errors.New("密码加密失败")
 		}
@@ -136,7 +148,7 @@ func (s *StaffService) UpdateStaff(id uint, updates map[string]interface{}) (*mo
 	return s.GetStaffByID(id)
 }
 
-// DeleteStaff 删除物业人员
+// 5 DeleteStaff 删除物业人员
 func (s *StaffService) DeleteStaff(id uint) error {
 	staff, err := s.GetStaffByID(id)
 	if err != nil {
@@ -145,7 +157,7 @@ func (s *StaffService) DeleteStaff(id uint) error {
 	return s.DB.Delete(staff).Error
 }
 
-// GetStaffDevices 获取物业人员管理的设备列表
+// 6 GetStaffDevices 获取物业人员管理的设备列表
 func (s *StaffService) GetStaffDevices(staffID uint) ([]models.Device, error) {
 	// 检查物业人员是否存在
 	staff, err := s.GetStaffByID(staffID)
@@ -162,7 +174,7 @@ func (s *StaffService) GetStaffDevices(staffID uint) ([]models.Device, error) {
 	return devices, nil
 }
 
-// GetStaffByIDWithDevices 获取物业人员信息及其管理的设备
+// 7 GetStaffByIDWithDevices 获取物业人员信息及其管理的设备
 func (s *StaffService) GetStaffByIDWithDevices(id uint) (*models.PropertyStaff, error) {
 	staff, err := s.GetStaffByID(id)
 	if err != nil {

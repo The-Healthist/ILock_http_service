@@ -31,7 +31,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a list of all administrators in the system, with pagination support",
+                "description": "Get a list of all admin users with pagination",
                 "consumes": [
                     "application/json"
                 ],
@@ -54,6 +54,12 @@ const docTemplate = `{
                         "description": "Items per page, default is 10",
                         "name": "page_size",
                         "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search keyword for username, phone, etc.",
+                        "name": "search",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -62,12 +68,6 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
@@ -84,7 +84,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new system administrator account and return the created administrator info",
+                "description": "Create a new admin user",
                 "consumes": [
                     "application/json"
                 ],
@@ -94,10 +94,10 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Create Administrator",
+                "summary": "Create Admin",
                 "parameters": [
                     {
-                        "description": "Administrator information - username, password and email are required",
+                        "description": "Admin information",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -108,20 +108,20 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Success response with created admin details",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad request or username already exists",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
@@ -136,7 +136,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get details of a specific administrator by ID",
+                "description": "Get details of a specific admin by ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -150,7 +150,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Administrator ID",
+                        "description": "Admin ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -190,7 +190,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update details of an administrator with the specified ID",
+                "description": "Update an existing admin user",
                 "consumes": [
                     "application/json"
                 ],
@@ -200,17 +200,17 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Update Administrator",
+                "summary": "Update Admin",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Administrator ID",
+                        "description": "Admin ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Updated administrator information",
+                        "description": "Updated admin information",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -253,7 +253,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete an administrator with the specified ID",
+                "description": "Delete an admin user with the specified ID",
                 "consumes": [
                     "application/json"
                 ],
@@ -263,11 +263,11 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Delete Administrator",
+                "summary": "Delete Admin",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Administrator ID",
+                        "description": "Admin ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -289,6 +289,100 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/rtc/call": {
+            "post": {
+                "description": "Initiate a video call between a device and a resident",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "RTC"
+                ],
+                "summary": "Start Video Call",
+                "parameters": [
+                    {
+                        "description": "Call request parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/rtc/token": {
+            "post": {
+                "description": "Get a RTC token for real-time communication",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "RTC"
+                ],
+                "summary": "Get RTC Token",
+                "parameters": [
+                    {
+                        "description": "Token request parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.TokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
@@ -368,6 +462,11 @@ const docTemplate = `{
         },
         "/calls": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get a list of all call records in the system, with pagination",
                 "consumes": [
                     "application/json"
@@ -412,6 +511,11 @@ const docTemplate = `{
         },
         "/calls/device/{deviceId}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get call records for a specific device, with pagination",
                 "consumes": [
                     "application/json"
@@ -475,6 +579,11 @@ const docTemplate = `{
         },
         "/calls/resident/{residentId}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get call records for a specific resident, with pagination",
                 "consumes": [
                     "application/json"
@@ -538,6 +647,11 @@ const docTemplate = `{
         },
         "/calls/statistics": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get call statistics including total, answered, missed, etc.",
                 "consumes": [
                     "application/json"
@@ -568,6 +682,11 @@ const docTemplate = `{
         },
         "/calls/{id}": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Get details of a specific call record by ID",
                 "consumes": [
                     "application/json"
@@ -619,6 +738,11 @@ const docTemplate = `{
         },
         "/calls/{id}/feedback": {
             "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "description": "Submit quality feedback for a specific call record",
                 "consumes": [
                     "application/json"
@@ -677,11 +801,69 @@ const docTemplate = `{
                 }
             }
         },
+        "/device/status": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "设备用于报告在线状态的简单健康检测接口",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device"
+                ],
+                "summary": "设备健康检测",
+                "parameters": [
+                    {
+                        "description": "设备健康检测请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceHealthRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/devices": {
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "获取所有设备的列表",
@@ -722,7 +904,7 @@ const docTemplate = `{
             "post": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "创建一个新的门禁设备",
@@ -773,7 +955,7 @@ const docTemplate = `{
             "get": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "根据ID获取设备信息",
@@ -826,7 +1008,7 @@ const docTemplate = `{
             "put": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "根据ID更新设备信息",
@@ -888,7 +1070,7 @@ const docTemplate = `{
             "delete": {
                 "security": [
                     {
-                        "ApiKeyAuth": []
+                        "BearerAuth": []
                     }
                 ],
                 "description": "根据ID删除设备",
@@ -988,7 +1170,12 @@ const docTemplate = `{
         },
         "/emergency/alarm": {
             "post": {
-                "description": "触发紧急警报并通知相关人员",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Trigger an emergency alarm and notify relevant personnel",
                 "consumes": [
                     "application/json"
                 ],
@@ -998,10 +1185,10 @@ const docTemplate = `{
                 "tags": [
                     "Emergency"
                 ],
-                "summary": "触发紧急警报",
+                "summary": "Trigger Emergency Alarm",
                 "parameters": [
                     {
-                        "description": "警报请求参数",
+                        "description": "Alarm request parameters",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1021,15 +1208,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     }
                 }
@@ -1037,7 +1222,12 @@ const docTemplate = `{
         },
         "/emergency/contacts": {
             "get": {
-                "description": "获取系统中所有紧急联系人的列表",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a list of all emergency contacts in the system",
                 "consumes": [
                     "application/json"
                 ],
@@ -1047,7 +1237,7 @@ const docTemplate = `{
                 "tags": [
                     "Emergency"
                 ],
-                "summary": "获取紧急联系人列表",
+                "summary": "Get Emergency Contacts",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1059,8 +1249,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     }
                 }
@@ -1068,7 +1257,12 @@ const docTemplate = `{
         },
         "/emergency/notify-all": {
             "post": {
-                "description": "向系统中的所有用户发送紧急通知",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Send notification to all users during an emergency",
                 "consumes": [
                     "application/json"
                 ],
@@ -1078,10 +1272,10 @@ const docTemplate = `{
                 "tags": [
                     "Emergency"
                 ],
-                "summary": "发送紧急通知",
+                "summary": "Notify All Users",
                 "parameters": [
                     {
-                        "description": "通知请求参数",
+                        "description": "Notification request parameters",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1101,15 +1295,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     }
                 }
@@ -1117,7 +1309,12 @@ const docTemplate = `{
         },
         "/emergency/unlock-all": {
             "post": {
-                "description": "在紧急情况下解锁系统中所有门锁",
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Unlock all doors in the system during an emergency",
                 "consumes": [
                     "application/json"
                 ],
@@ -1127,10 +1324,10 @@ const docTemplate = `{
                 "tags": [
                     "Emergency"
                 ],
-                "summary": "紧急解锁所有门",
+                "summary": "Emergency Unlock All Doors",
                 "parameters": [
                     {
-                        "description": "解锁请求参数",
+                        "description": "Unlock request parameters",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1150,15 +1347,344 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/call": {
+            "post": {
+                "description": "Start a new call via MQTT to all residents associated with the device",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Initiate MQTT Call",
+                "parameters": [
+                    {
+                        "description": "Call initiation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.InitiateCallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.InitiateCallResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/controller/device": {
+            "post": {
+                "description": "Process device side call actions (hangup, cancelled)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Handle MQTT Caller Action",
+                "parameters": [
+                    {
+                        "description": "Device call action request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/controller/resident": {
+            "post": {
+                "description": "Process resident side call actions (answered, rejected, hangup, timeout)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Handle MQTT Callee Action",
+                "parameters": [
+                    {
+                        "description": "Resident call action request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/device/status": {
+            "post": {
+                "description": "更新设备状态信息，包括在线状态、电池电量和其他自定义属性，无需MQTT连接",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device"
+                ],
+                "summary": "Update Device Status",
+                "parameters": [
+                    {
+                        "description": "设备状态信息：包含设备ID、在线状态、电池电量等",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.PublishDeviceStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/end-session": {
+            "post": {
+                "description": "Forcefully end a call session and notify all parties",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "End MQTT Call Session",
+                "parameters": [
+                    {
+                        "description": "End call session request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.EndCallSessionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/session": {
+            "get": {
+                "description": "Retrieve call session information with TRTC details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Get MQTT Call Session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Call session ID",
+                        "name": "call_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallSessionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/system/message": {
+            "post": {
+                "description": "Publish system message via MQTT",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Publish System Message",
+                "parameters": [
+                    {
+                        "description": "System message information",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.PublishSystemMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     }
                 }
@@ -1428,104 +1954,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/rtc/call": {
-            "post": {
-                "description": "在设备和居民之间发起视频通话",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "RTC"
-                ],
-                "summary": "发起视频通话",
-                "parameters": [
-                    {
-                        "description": "通话请求参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.CallRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/rtc/token": {
-            "post": {
-                "description": "获取用于进行实时通信的RTC令牌",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "RTC"
-                ],
-                "summary": "获取RTC令牌",
-                "parameters": [
-                    {
-                        "description": "令牌请求参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.TokenRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
         "/staffs": {
             "get": {
                 "security": [
@@ -1586,7 +2014,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new property staff account, with specified role, position and property",
+                "description": "Create a new property staff member",
                 "consumes": [
                     "application/json"
                 ],
@@ -1599,7 +2027,7 @@ const docTemplate = `{
                 "summary": "Create Property Staff",
                 "parameters": [
                     {
-                        "description": "Property staff information - including name, phone, username, password, property ID and role",
+                        "description": "Property staff information",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1610,20 +2038,75 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Success response with created staff details",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad request, phone or username already in use",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/staffs/with-devices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get a list of all property staff members with their associated devices",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Staff"
+                ],
+                "summary": "Get Property Staff List With Devices",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Page number, default is 1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Items per page, default is 10",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search keyword for name, phone, etc.",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
@@ -1692,7 +2175,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update details of a property staff member with the specified ID",
+                "description": "Update an existing property staff member",
                 "consumes": [
                     "application/json"
                 ],
@@ -1803,9 +2286,121 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/trtc/call": {
+            "post": {
+                "description": "Initiate a Tencent Cloud video call between a device and a resident",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TencentRTC"
+                ],
+                "summary": "Start Tencent Video Call",
+                "parameters": [
+                    {
+                        "description": "Call request parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.TencentCallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/trtc/usersig": {
+            "post": {
+                "description": "Get a UserSig credential for Tencent Cloud real-time communication",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TencentRTC"
+                ],
+                "summary": "Get Tencent TRTC UserSig",
+                "parameters": [
+                    {
+                        "description": "UserSig request parameters",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.GetUserSigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
+        "controllers.CallActionRequest": {
+            "type": "object",
+            "required": [
+                "action",
+                "call_id"
+            ],
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "call_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.CallFeedbackRequest": {
             "type": "object",
             "required": [
@@ -1831,6 +2426,23 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.CallInfo": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "call_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "integer"
+                }
+            }
+        },
         "controllers.CallRequest": {
             "type": "object",
             "required": [
@@ -1846,30 +2458,73 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.CallSessionResponse": {
+            "type": "object",
+            "properties": {
+                "call_id": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "last_activity": {
+                    "type": "string"
+                },
+                "resident_id": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tencen_rtc": {
+                    "$ref": "#/definitions/controllers.TRTCInfo"
+                }
+            }
+        },
         "controllers.CreateAdminRequest": {
             "type": "object",
             "required": [
                 "email",
                 "password",
+                "phone",
                 "username"
             ],
             "properties": {
                 "email": {
                     "type": "string",
-                    "example": "admin@ilock.com"
+                    "example": "admin@example.com"
                 },
                 "password": {
                     "type": "string",
-                    "example": "admin123"
+                    "example": "Admin@123"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "13800138000"
                 },
                 "username": {
                     "type": "string",
-                    "example": "admin1"
+                    "example": "admin123"
                 }
             }
         },
         "controllers.CreateStaffRequest": {
             "type": "object"
+        },
+        "controllers.DeviceHealthRequest": {
+            "type": "object",
+            "required": [
+                "device_id"
+            ],
+            "properties": {
+                "device_id": {
+                    "type": "string",
+                    "example": "1"
+                }
+            }
         },
         "controllers.DeviceRequest": {
             "type": "object"
@@ -1962,6 +2617,20 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.EndCallSessionRequest": {
+            "type": "object",
+            "required": [
+                "call_id"
+            ],
+            "properties": {
+                "call_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -1973,6 +2642,61 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Invalid username or password"
+                }
+            }
+        },
+        "controllers.GetUserSigRequest": {
+            "type": "object",
+            "required": [
+                "user_id"
+            ],
+            "properties": {
+                "user_id": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        },
+        "controllers.InitiateCallRequest": {
+            "type": "object",
+            "required": [
+                "device_device_id",
+                "target_resident_id"
+            ],
+            "properties": {
+                "device_device_id": {
+                    "description": "使用与MQTT通讯中相同的字段名",
+                    "type": "string"
+                },
+                "target_resident_id": {
+                    "description": "使用与MQTT通讯中相同的字段名",
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.InitiateCallResponse": {
+            "type": "object",
+            "properties": {
+                "call_id": {
+                    "type": "string"
+                },
+                "call_info": {
+                    "$ref": "#/definitions/controllers.CallInfo"
+                },
+                "device_device_id": {
+                    "type": "string"
+                },
+                "target_resident_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tencen_rtc": {
+                    "$ref": "#/definitions/controllers.TRTCInfo"
+                },
+                "timestamp": {
+                    "type": "integer"
                 }
             }
         },
@@ -2032,6 +2756,50 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.PublishDeviceStatusRequest": {
+            "type": "object",
+            "required": [
+                "device_id"
+            ],
+            "properties": {
+                "battery": {
+                    "type": "integer"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "online": {
+                    "type": "boolean"
+                },
+                "properties": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "controllers.PublishSystemMessageRequest": {
+            "type": "object",
+            "required": [
+                "level",
+                "message",
+                "type"
+            ],
+            "properties": {
+                "data": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "level": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.ResidentRequest": {
             "type": "object",
             "required": [
@@ -2058,6 +2826,41 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.TRTCInfo": {
+            "type": "object",
+            "properties": {
+                "room_id": {
+                    "type": "string"
+                },
+                "room_id_type": {
+                    "type": "string"
+                },
+                "sdk_app_id": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_sig": {
+                    "type": "string"
+                }
+            }
+        },
+        "controllers.TencentCallRequest": {
+            "type": "object",
+            "required": [
+                "device_id",
+                "resident_id"
+            ],
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "resident_id": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.TokenRequest": {
             "type": "object",
             "required": [
@@ -2080,15 +2883,15 @@ const docTemplate = `{
             "properties": {
                 "email": {
                     "type": "string",
-                    "example": "admin@ilock.com"
+                    "example": "admin@example.com"
                 },
                 "password": {
                     "type": "string",
                     "example": "NewPassword@123"
                 },
-                "username": {
+                "phone": {
                     "type": "string",
-                    "example": "admin_updated"
+                    "example": "13800138000"
                 }
             }
         },
@@ -2194,7 +2997,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "duration": {
-                    "description": "in seconds",
+                    "description": "通话时长",
                     "type": "integer"
                 },
                 "id": {
@@ -2207,6 +3010,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "timestamp": {
+                    "description": "通话开始时间",
                     "type": "string"
                 }
             }
@@ -2275,9 +3079,6 @@ const docTemplate = `{
                 },
                 "updated_at": {
                     "type": "string"
-                },
-                "weather": {
-                    "$ref": "#/definitions/models.Weather"
                 }
             }
         },
@@ -2439,47 +3240,6 @@ const docTemplate = `{
                     "type": "string"
                 }
             }
-        },
-        "models.Weather": {
-            "type": "object",
-            "properties": {
-                "device": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Device"
-                        }
-                    ]
-                },
-                "device_id": {
-                    "description": "One-to-one with device",
-                    "type": "integer"
-                },
-                "humidity": {
-                    "type": "number"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "temperature": {
-                    "type": "number"
-                },
-                "updated_at": {
-                    "type": "string"
-                },
-                "warning": {
-                    "description": "Weather warnings",
-                    "type": "string"
-                },
-                "weather": {
-                    "description": "Sunny, cloudy, rain, etc.",
-                    "type": "string"
-                },
-                "wind": {
-                    "description": "Wind description",
-                    "type": "string"
-                }
-            }
         }
     },
     "securityDefinitions": {
@@ -2495,7 +3255,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "localhost:20033",
 	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "ILock HTTP Service API",

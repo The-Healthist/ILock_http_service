@@ -1,336 +1,421 @@
-# ILock HTTP Service
+# iLock 智能门禁系统
 
-A comprehensive door access management system with video calling capabilities and real-time weather information integration.
+## 项目概述
 
-## Features
+iLock 是一个基于 Go 语言开发的智能门禁管理系统，提供了强大的门禁控制、视频通话和紧急情况处理功能。系统采用 Docker 容器化部署，便于在各种环境中快速安装和更新。
 
-- **User Management**
-  - Multi-role authentication (Admin, Property Staff, Resident)
-  - Secure JWT-based authentication
-  - Role-based access control
+## 系统架构
 
-- **Door Access Control**
-  - Device management and pairing with residents
-  - Access logs for security tracking
-  - Emergency response system
-  
-- **Real-time Communication**
-  - Video calling between door devices and residents via Aliyun RTC
-  - Token-based secure communication
-  - In-memory token caching for improved performance
-  
-- **Weather Information**
-  - Real-time weather data for device locations
-  - Weather alerts and forecasts
-  - Cached weather data for improved performance
+- **后端**: Go + Gin 框架 + GORM
+- **数据库**: MySQL 8.0
+- **缓存**: Redis 7.4.1
+- **部署**: Docker + Docker Compose
+- **通讯**:
+  - RESTful API: 基础业务操作
+  - MQTT: 实时消息推送、视频通话信令
+  - TRTC: 腾讯云实时音视频
 
-- **System Features**
-  - Comprehensive logging system
-  - Monitoring and health checks
-  - Docker containerization for easy deployment
+## MQTT 通信架构
 
-## Technology Stack
+### 1. 主题设计
 
-- **Backend**: Go with Gin framework
-- **Database**: MySQL with GORM ORM
-- **Caching**: Redis for token and weather data
-- **Communication**: Aliyun RTC for real-time video calls
-- **Containerization**: Docker and Docker Compose
-- **External APIs**: Weather API integration
+#### 视频通话相关主题
 
-## Project Structure
+- **呼叫请求**: `calls/request/{device_device_id}`
+- **来电通知**: `users/{user_id}/calls/incoming`
+- **呼叫方控制**: `devices/{device_device_id}/calls/control`
+- **接收方控制**: `users/{user_id}/calls/control`
 
-```
-.
-├── config/             # Configuration management and environment variables
-├── controllers/        # HTTP request handlers (RTC, Weather, Auth)
-│   ├── base_controller.go
-│   ├── jwt_controller.go
-│   ├── rtc_controller.go
-│   └── weather_controller.go
-├── middleware/         # Middleware components (JWT auth, logging)
-├── models/             # Database models (GORM)
-│   ├── admin.go
-│   ├── device.go
-│   ├── resident.go
-│   └── ... 
-├── routes/             # API route definitions and grouping
-├── services/           # Business logic
-│   ├── aliyun/         # Aliyun RTC integration
-│   ├── redis/          # Redis caching service
-│   ├── weather/        # Weather API integration
-│   └── container.go    # Service container for dependency injection
-├── utils/              # Utility functions
-├── Dockerfile          # Docker configuration
-├── docker-compose.yml  # Docker Compose configuration
-├── main.go             # Application entry point
-└── go.mod              # Go module definition
-```
+### 2. 消息质量(QoS)
 
-## Setup and Installation
+- 视频通话信令: QoS 1 (至少一次送达)
+- 普通通知: QoS 0 (最多一次送达)
+- 紧急通知: QoS 2 (确保一次送达)
 
-### Prerequisites
+### 3. 消息格式
 
-- Go 1.20 or higher
-- MySQL
-- Redis
-- Docker and Docker Compose (optional for containerized deployment)
+所有消息采用 JSON 格式，包含以下基本字段：
 
-### Local Development Setup
+- `message_id`: 消息唯一标识
+- `timestamp`: 消息时间戳
+- `type`: 消息类型
+- `payload`: 消息内容
 
-1. Clone the repository:
+### 4. 实时通信流程
+
+#### 视频通话流程
+
+1. 访客通过门禁设备发起呼叫
+2. 后端接收呼叫请求并创建 TRTC 房间
+3. 向住户推送来电通知
+4. 住户接听/拒绝通话
+5. 后端处理响应并通知门禁设备
+6. 建立/结束视频通话
+
+#### 紧急情况处理
+
+1. 系统检测到紧急情况
+2. 通过紧急通知主题广播警报
+3. 相关人员接收通知并处理
+4. 系统记录响应情况
+
+## 主要功能
+
+- 用户管理（管理员、物业人员、居民）
+- 设备管理（智能门锁监控和控制）
+- 视频通话（访客与居民之间的实时沟通）
+- 紧急情况处理（火灾、入侵、医疗等紧急事件）
+- 完整的认证和权限管理
+
+## 部署指南
+
+### 前置要求
+
+1. **服务器环境**:
+
+   - Linux 服务器（推荐 Ubuntu 20.04 或 CentOS 8）
+   - Docker 和 Docker Compose 已安装
+   - 开放端口：8080(HTTP), 3310(MySQL), 6380(Redis)
+
+2. **本地环境**（用于部署）:
+   - Windows 操作系统
+   - 已安装 PuTTY 工具集（包含 pscp.exe 和 plink.exe）
+
+### 快速部署（Windows）
+
+我们提供了一个一键部署脚本`deploy_ilock.bat`，可以自动完成打包、上传和部署过程：
+
+1. **下载部署脚本**并保存到本地项目根目录。
+
+2. **执行部署脚本**：
+
+   - 双击运行`deploy_ilock.bat`
+   - 按提示确认或修改服务器配置信息
+   - 脚本会自动检查、打包、上传和部署项目
+
+3. **验证部署**：
+   - 脚本会自动验证服务是否成功启动
+   - 访问`http://服务器IP:8080`检查服务运行状态
+   - 访问`http://服务器IP:20033/swagger/index.html`查看 API 文档
+
+### 手动部署
+
+如果你需要手动部署，可以按照以下步骤操作：
+
+1. **克隆代码到本地**：
+
    ```bash
    git clone <repository-url>
-   cd ILock_http_service
+   cd ilock-http-service
    ```
 
-2. Install dependencies:
+2. **创建环境配置文件**：
+
    ```bash
-   go mod tidy
+   cp .env.example .env
+   # 编辑.env文件，设置数据库和JWT等配置
    ```
 
-3. Configure environment variables or update them in `config/config.go`
+3. **上传到服务器**：
 
-4. Run the application:
    ```bash
-   go run main.go
+   scp -r ./* user@server:/path/to/ilock-service/
    ```
 
-### Docker Deployment
-
-1. Build and start the containers:
+4. **在服务器上启动服务**：
    ```bash
+   cd /path/to/ilock-service/
    docker-compose up -d
    ```
 
-2. The service will be available at `http://localhost:8080`
+### 服务器配置参考
 
-## API 接口文档
+默认配置如下，可以根据需要在部署时修改：
 
-系统提供多种API接口，按功能分类详述如下：
+- **服务器**:
 
-### 1. 认证与授权接口
+  - IP:
+  - 部署目录: /root/ilock
+  - SSH 端口: 22
 
-#### 公共接口
+- **数据库**:
 
-- `POST /api/auth/login` - 用户登录
-  - 支持多种角色登录（管理员、物业人员、居民）
-  - 返回JWT令牌及用户信息
+  - 主机: localhost
+  - 端口: 3309
+  - 用户: root
+  - 密码:
+  - 数据库名: ilock_db
 
-#### 认证中间件保护的路由
+- **Docker 镜像**:
+  - 镜像仓库: https://goproxy.cn,direct
+  - 服务端口: 20033
 
-系统使用JWT认证保护各类接口，支持多级权限控制：
-- 系统管理员 - 最高权限
-- 物业人员 - 物业相关管理权限
-- 居民 - 个人相关功能权限
-- 设备 - 设备特定功能权限
+## 更新与维护
 
-### 2. 设备管理接口
+### 使用部署脚本更新
 
-#### 设备基础操作
+当系统需要更新时，你可以使用同样的部署脚本：
 
-- `GET /api/device` - 获取所有设备列表
-- `GET /api/device/:id` - 获取单个设备详情
-- `POST /api/device` - 添加新设备
-- `PUT /api/device/:id` - 更新设备信息
-- `DELETE /api/device/:id` - 删除设备
+1. 将需要更新的文件准备好（例如`controller/base/building_controller.go`等）
+2. 运行部署脚本，它会自动创建备份并更新文件
+3. 系统会自动验证更新是否成功，如果失败会自动回滚
 
-#### 设备状态与操作
+### 常用维护命令
 
-- `GET /api/device/:id/status` - 获取设备状态
+- **查看服务日志**:
 
-### 3. 用户管理接口
+  ```bash
+  docker-compose logs -f backend
+  ```
 
-#### 管理员管理
+- **重启服务**:
 
-- `GET /api/admins` - 获取管理员列表
-- `GET /api/admins/:id` - 获取管理员详情
-- `POST /api/admins` - 创建管理员账户
-- `PUT /api/admins/:id` - 更新管理员信息
-- `DELETE /api/admins/:id` - 删除管理员账户
+  ```bash
+  docker-compose restart backend
+  ```
 
-#### 物业人员管理
+- **回滚到之前版本**:
+  ```bash
+  cd /root/ilock && \
+  cp -r backup/controller/base/* controller/base/ && \
+  cp -r backup/models/base/* models/base/ && \
+  cp -r backup/services/base/* services/base/ && \
+  docker-compose down && \
+  docker-compose build backend && \
+  docker-compose up -d
+  ```
 
-- `GET /api/staff` - 获取物业人员列表
-- `GET /api/staff/:id` - 获取物业人员详情
-- `POST /api/staff` - 创建物业人员账户
-- `PUT /api/staff/:id` - 更新物业人员信息
-- `DELETE /api/staff/:id` - 删除物业人员账户
+## API 文档
 
-#### 居民管理
+系统集成了 Swagger 文档，部署后可以通过以下地址访问：
 
-- `GET /api/residents` - 获取居民列表
-- `GET /api/residents/:id` - 获取居民详情
-- `POST /api/residents` - 创建居民账户
-- `PUT /api/residents/:id` - 更新居民信息
-- `DELETE /api/residents/:id` - 删除居民账户
+http://服务器 IP:20033/swagger/index.html
 
-### 4. 实时通信接口
+主要 API 端点包括：
 
-#### RTC服务
+- **认证**: `/api/auth/login`
+- **管理员**: `/api/admins/*`
+- **物业人员**: `/api/staffs/*`
+- **居民**: `/api/residents/*`
+- **设备**: `/api/devices/*`
+- **通话记录**: `/api/calls/*`
+- **紧急情况**: `/api/emergency/*`
 
-- `POST /api/rtc/token` - 获取RTC通信令牌
-- `POST /api/rtc/call` - 发起视频通话
+## MQTT 通讯协议接口文档
 
-#### 通话记录管理
+### 通讯架构
 
-- `GET /api/calls` - 获取通话记录列表
-- `GET /api/calls/:id` - 获取单个通话记录详情
-- `GET /api/calls/statistics` - 获取通话统计信息
-- `GET /api/calls/device/:deviceId` - 获取指定设备的通话记录
-- `GET /api/calls/resident/:residentId` - 获取指定居民的通话记录
-- `POST /api/calls/:id/feedback` - 提交通话质量反馈
+iLock 系统使用 MQTT 协议实现实时消息推送和视频通话信令传输。下面详细说明 MQTT 通讯协议的各个方面：
 
-### 5. 天气服务接口
+### 1. MQTT 主题设计
 
-- `GET /api/weather` - 获取天气信息
-- `GET /api/weather/device/:deviceId` - 获取指定设备位置的天气信息
+#### 视频通话相关主题
 
-### 6. 紧急情况处理接口
+- **呼叫请求**
+- **来电通知**
+- **通话控制**
+- **通话控制**
+- **设备状态** :
 
-- `POST /api/emergency/alarm` - 触发紧急警报
-  - 支持多种类型警报：火灾、入侵、医疗等
-  - 记录警报详情并通知相关人员
+- **系统消息**:
 
-- `GET /api/emergency/contacts` - 获取紧急联系人列表
-  - 按优先级排序的联系人信息
+### 2. api 设计以及参数
 
-- `POST /api/emergency/unlock-all` - 紧急情况下解锁所有门
-  - 紧急疏散等情况使用
-  - 记录所有解锁操作
+所有消息载荷均使用 JSON 格式。
 
-- `POST /api/emergency/notify-all` - 向所有用户发送紧急通知
-  - 支持多种重要程度：高、中、低
-  - 支持目标群体筛选：全体、居民、物业人员
+#### 呼叫请求 post(`mqtt_call/call`)
 
-### 7. 系统监控接口
+**方向**: device -> Backend
 
-- `GET /api/ping` - 系统健康检查
-  - 用于监控系统可用性
+```json
+{
+  "device_device_id": "device_device_id",                  // 呼叫方设备ID
+  "target_resident_id": "resident_resident_id",              // 目标用户ID
+  "timestamp": 1678886400000                               // 发起呼叫的Unix毫秒时间戳
+}
+// 响应:
+{
+  "call_id": "unique_call_identifier_generated_by_device", // 本次呼叫的唯一id
+  "device_device_id": "device_device_id",                  // 呼叫方设备ID
+  "target_resident_id": "resident_resident_id",
+  "timestamp": 1678886400000,
+  "tencen_rtc": {                                          // 加入TRTC房间所需信息
+    "room_id_type":"number",
+    "room_id": "trtc_room_id_created_by_backend",          // TRTC房间号
+    "sdk_app_id": 1400000000,                              // TRTC应用ID
+    "user_id": "resident_user_id",                           // 被呼叫方在TRTC中使用的
+    "user_sig": "generated_user_signature_for_resident"      // 被呼叫方的TRTC签名
+  },
+  "call_info":{
+	"action": "ringing",                                     // 控制动作类型
+	"call_id": "unique_call_identifier_from_request",        // 对应呼叫请求的ID
+	"timestamp": 1678886500000,                              // 发送指令的Unix毫秒时间戳
+	"reason": "Optional message for details"                 // 可选，提供额外信息
+}
 
-## 后续计划开发接口
+}
+```
 
-以下是系统后续计划开发的API接口：
+#### 来电通知 post(`mqtt_call/incoming`)
 
-### 1. 设备扩展接口
+**方向**: Backend -> mqtt ->resident : 信息的转发
 
-- `PUT /api/device/{id}/configuration` - 更新设备配置
-- `POST /api/device/{id}/reboot` - 重启设备
-- `POST /api/device/{id}/unlock` - 远程开门
+```json
+{
+  "call_id": "unique_call_identifier_generated_by_device", // 本次呼叫的唯一id
+  "device_device_id": "device_device_id",                  // 呼叫方设备ID
+  "target_resident_id": "resident_resident_id",
+  "timestamp": 1678886400000
+  "tencen_rtc": {                                          // 加入TRTC房间所需信息
+    "room_id_type":"number",
+    "room_id": "trtc_room_id_created_by_backend",          // TRTC房间号
+    "sdk_app_id": 1400000000,                              // TRTC应用ID
+    "user_id": "resident_user_id",                           // 被呼叫方在TRTC中使用的
+    "user_sig": "generated_user_signature_for_resident"      // 被呼叫方的TRTC签名
+  },
+}
+```
 
-### 2. 访客管理
+#### 通话控制(接听前) - 呼叫方挂断按钮 post(`mqtt_call/controller/device`)
 
-- `POST /api/visitors` - 创建访客邀请
-- `GET /api/visitors` - 获取访客列表
-- `GET /api/visitors/{id}` - 获取单个访客详情
-- `PUT /api/visitors/{id}` - 更新访客信息
-- `DELETE /api/visitors/{id}` - 删除访客邀请
-- `POST /api/visitors/{id}/approve` - 批准访客邀请
-- `POST /api/visitors/{id}/reject` - 拒绝访客邀请
-- `GET /api/visitors/qr-code/{id}` - 获取访客二维码
+**方向**:device -> Backend -> mqtt -> target_resident(已挂断)
 
-### 3. 通知管理
+```json
+"call_info":{
+	"action": "hangup", // 控制动作类型
+	"call_id": "unique_call_identifier_from_request", // 对应呼叫请求的ID
+	"timestamp": 1678886500000, // 发送指令的Unix毫秒时间戳
+	"reason": "Optional message for details" // 可选，提供额外信息
+}
+```
 
-- `POST /api/notifications` - 发送通知
-- `GET /api/notifications` - 获取通知列表
-- `GET /api/notifications/{id}` - 获取单个通知详情
-- `PUT /api/notifications/{id}/read` - 标记通知为已读
-- `DELETE /api/notifications/{id}` - 删除通知
-- `POST /api/notifications/batch` - 批量发送通知
+**action 说明**:
 
-### 4. 系统监控与管理
+- 'reveive':接听了
+- `ringing`: resident 正在被呼叫（已发送 incoming 通知）
+- `rejected`: resident 拒绝了通话
+- `hangup`: resident 挂断了通话
+- `timeout`: resident 无应答超时
+- `error`: 处理过程中发生错误（如创建房间失败）
 
-- `GET /api/system/status` - 获取系统状态
-- `GET /api/system/statistics` - 获取系统统计信息
-- `GET /api/system/logs` - 获取系统日志
-- `POST /api/system/backup` - 创建系统备份
-- `GET /api/system/backups` - 获取备份列表
-- `POST /api/system/restore` - 从备份恢复系统
+#### 通话控制(接听前) - 被呼叫方挂断按钮 post(`mqtt_call/controller/resident`)
 
-## License
+**方向**:target_resident(已挂断) -> Backend -> mqtt -> device
 
-Copyright © 2024
-智能门禁系统后续需要的接口
-基于您现有的智能门禁系统，以下是我建议开发的后续接口，按功能模块分类：
-1. 用户管理接口
-居民(Resident)相关
-GET /api/residents - 获取居民列表
-GET /api/residents/{id} - 获取单个居民详情
-POST /api/residents - 添加新居民
-PUT /api/residents/{id} - 更新居民信息
-DELETE /api/residents/{id} - 删除居民
-GET /api/residents/{id}/access-logs - 获取居民的进出记录
-物业人员相关
-GET /api/staff - 获取物业人员列表
-GET /api/staff/{id} - 获取单个物业人员详情
-POST /api/staff - 添加新物业人员
-PUT /api/staff/{id} - 更新物业人员信息
-DELETE /api/staff/{id} - 删除物业人员
-PUT /api/staff/{id}/permissions - 更新物业人员权限
-系统管理员相关
-GET /api/admins - 获取管理员列表
-POST /api/admins - 添加新管理员
-PUT /api/admins/{id} - 更新管理员信息
-DELETE /api/admins/{id} - 删除管理员
-2. 设备管理接口
-设备相关
-GET /api/devices - 获取所有设备列表
-GET /api/devices/{id} - 获取单个设备详情
-POST /api/devices - 添加新设备
-PUT /api/devices/{id} - 更新设备信息
-DELETE /api/devices/{id} - 删除设备
-GET /api/devices/{id}/status - 获取设备状态
-PUT /api/devices/{id}/configuration - 更新设备配置
-POST /api/devices/{id}/reboot - 重启设备
-POST /api/devices/{id}/unlock - 远程开门
-设备分组管理
-GET /api/device-groups - 获取设备分组列表
-POST /api/device-groups - 创建设备分组
-PUT /api/device-groups/{id} - 更新设备分组
-DELETE /api/device-groups/{id} - 删除设备分组
-POST /api/device-groups/{id}/devices - 向分组添加设备
-DELETE /api/device-groups/{id}/devices/{deviceId} - 从分组移除设备
-3. 通话记录管理
-GET /api/calls - 获取通话记录列表
-GET /api/calls/{id} - 获取单个通话记录详情
-GET /api/calls/statistics - 获取通话统计信息
-GET /api/calls/device/{deviceId} - 获取指定设备的通话记录
-GET /api/calls/resident/{residentId} - 获取指定居民的通话记录
-POST /api/calls/{id}/feedback - 提交通话质量反馈
-4. 门禁记录管理
-GET /api/access-logs - 获取门禁记录列表
-GET /api/access-logs/{id} - 获取单个门禁记录详情
-GET /api/access-logs/statistics - 获取门禁统计信息
-GET /api/access-logs/device/{deviceId} - 获取指定设备的门禁记录
-POST /api/access-logs - 手动添加门禁记录(适用于特殊情况)
-5. 访客管理
-POST /api/visitors - 创建访客邀请
-GET /api/visitors - 获取访客列表
-GET /api/visitors/{id} - 获取单个访客详情
-PUT /api/visitors/{id} - 更新访客信息
-DELETE /api/visitors/{id} - 删除访客邀请
-POST /api/visitors/{id}/approve - 批准访客邀请
-POST /api/visitors/{id}/reject - 拒绝访客邀请
-GET /api/visitors/qr-code/{id} - 获取访客二维码
-6. 通知管理
-POST /api/notifications - 发送通知
-GET /api/notifications - 获取通知列表
-GET /api/notifications/{id} - 获取单个通知详情
-PUT /api/notifications/{id}/read - 标记通知为已读
-DELETE /api/notifications/{id} - 删除通知
-POST /api/notifications/batch - 批量发送通知
-7. 系统监控与管理
-GET /api/system/status - 获取系统状态
-GET /api/system/statistics - 获取系统统计信息
-GET /api/system/logs - 获取系统日志
-POST /api/system/backup - 创建系统备份
-GET /api/system/backups - 获取备份列表
-POST /api/system/restore - 从备份恢复系统
-8. 紧急情况处理
-POST /api/emergency/alarm - 触发紧急警报
-GET /api/emergency/contacts - 获取紧急联系人列表
-POST /api/emergency/unlock-all - 紧急情况下解锁所有门
-POST /api/emergency/notify-all - 向所有用户发送紧急通知
+```json
+"call_info":{
+	"action": "rejected", // 控制动作类型
+	"call_id": "unique_call_identifier_from_request", // 对应呼叫请求的ID
+	"timestamp": 1678886500000, // 发送指令的Unix毫秒时间戳
+	"reason": "Optional message for details" // 可选，提供额外信息
+}
+```
 
+#### 通话控制(接听前) - 被呼叫方接听按钮 post(`mqtt_call/controller/resident`)
 
-## 已有接口
+**方向**:target_resident -> Backend -> mqtt -> device
+
+```json
+  "call_info":{
+	"action": "rejected", // 控制动作类型
+	"call_id": "unique_call_identifier_from_request", // 对应呼叫请求的ID
+	"timestamp": 1678886500000, // 发送指令的Unix毫秒时间戳
+	"reason": "Optional message for details" // 可选，提供额外信息
+}
+```
+
+resident -> 开始进入视频通话
+mqtt 进程再转发給 device -> 开始进入视频通话
+
+#### 接听以后的通话控制 - 呼叫方挂断按钮 post(`mqtt_call/controller/device`)
+
+**方向**: device -> Backend -> mqtt -> target_resident
+
+```json
+{
+	"action": "hangup", // 控制动作类型
+	"call_id": "unique_call_identifier_from_request", // 对应呼叫请求的ID
+	"timestamp": 1678886550000, // 发送指令的Unix毫秒时间戳
+	"reason": "Optional message for details" // 可选，提供额外信息
+}
+```
+
+#### 接听以后的通话控制 - 被呼叫方挂断按钮 post(`mqtt_call/controller/resident`)
+
+**方向**: target_resident -> Backend -> mqtt -> target_resident
+
+```json
+{
+	"action": "hangup", // 控制动作类型
+	"call_id": "unique_call_identifier_from_request", // 对应呼叫请求的ID
+	"timestamp": 1678886550000, // 发送指令的Unix毫秒时间戳
+	"reason": "Optional message for details" // 可选，提供额外信息
+}
+```
+
+```json
+{
+	"type": "device_offline", // 消息类型
+	"level": "warning", // 消息级别: info, warning, error
+	"message": "门口设备离线", // 消息内容
+	"timestamp": 1678886700000, // 发送时间戳
+	"data": {
+		// 额外数据（可选）
+		"device_id": "device123",
+		"last_seen": 1682570000000
+	}
+}
+```
+
+### 3. 上诉任何情况下都需要创建通话记录
+
+**方向**: Backend
+
+```json
+
+```
+
+### 4. 安全性考虑
+
+- 所有 MQTT 通信使用 TLS 加密
+- 客户端需要使用用户名/密码或证书进行身份验证
+- 主题设计确保信息隔离，防止未授权访问
+
+## 系统特性
+
+- **自动备份与回滚**: 在更新前自动创建备份，更新失败时自动回滚
+- **基于角色的访问控制**: 系统管理员、物业人员和居民具有不同的权限
+- **安全通信**: 基于 JWT 的 API 认证
+- **视频通话集成**: 集成阿里云 RTC 提供实时视频通话
+- **容器化部署**: 使用 Docker 和 Docker Compose 简化部署和维护
+- **紧急响应系统**: 快速处理火灾、入侵等紧急情况
+- **健康检查**: 服务健康状态监控，确保系统稳定运行
+
+## 故障排除
+
+1. **服务无法启动**:
+
+   - 检查 Docker 和 Docker Compose 是否正确安装
+   - 检查端口是否被占用: `netstat -tunlp`
+   - 查看容器日志: `docker-compose logs backend`
+
+2. **数据库连接失败**:
+
+   - 检查数据库配置是否正确
+   - 确认数据库服务是否运行: `docker-compose ps mysql`
+   - 尝试手动连接数据库验证凭据
+
+3. **API 响应错误**:
+
+   - 检查 JWT 密钥配置
+   - 确认请求格式是否正确
+   - 查看服务日志了解详细错误信息
+
+4. **部署脚本执行失败**:
+   - 确保 PuTTY 工具集已正确安装并在 PATH 中
+   - 检查服务器连接信息是否正确
+   - 验证本地文件存在且权限正确
+
+## 许可证
+
+版权所有 © 2024 iLock 开发团队

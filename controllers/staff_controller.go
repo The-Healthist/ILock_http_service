@@ -2,47 +2,56 @@ package controllers
 
 import (
 	"ilock-http-service/models"
+	"ilock-http-service/services"
 	"ilock-http-service/services/container"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
+
+// InterfaceStaffController 定义物业员工控制器接口
+type InterfaceStaffController interface {
+	GetStaffs()
+	GetStaff()
+	CreateStaff()
+	UpdateStaff()
+	DeleteStaff()
+	GetStaffsWithDevices()
+}
 
 // StaffController 处理物业员工相关的请求
 type StaffController struct {
-	BaseControllerImpl
+	Ctx       *gin.Context
+	Container *container.ServiceContainer
 }
 
 // NewStaffController 创建一个新的物业员工控制器
-func (f *ControllerFactory) NewStaffController(ctx *gin.Context) *StaffController {
+func NewStaffController(ctx *gin.Context, container *container.ServiceContainer) *StaffController {
 	return &StaffController{
-		BaseControllerImpl: BaseControllerImpl{
-			Container: f.Container,
-			Context:   ctx,
-		},
+		Ctx:       ctx,
+		Container: container,
 	}
 }
 
 // GetStaffs 获取物业员工列表
-// @Summary      Get Property Staff List
-// @Description  Get a list of all property staff members, with pagination and search support
+// @Summary      获取物业员工列表
+// @Description  获取所有物业员工的列表，支持分页和搜索
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        page query int false "Page number, default is 1" example:"1"
-// @Param        page_size query int false "Items per page, default is 10" example:"10"
-// @Param        search query string false "Search keyword for name, phone, etc." example:"manager"
+// @Param        page query int false "页码，默认为1" example:"1"
+// @Param        page_size query int false "每页条数，默认为10" example:"10"
+// @Param        search query string false "搜索关键词(姓名、电话等)" example:"manager"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      500  {object}  ErrorResponse
 // @Router       /staffs [get]
 // @Security     BearerAuth
 func (c *StaffController) GetStaffs() {
 	// 获取分页参数
-	page, _ := strconv.Atoi(c.Context.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.Context.DefaultQuery("page_size", "10"))
-	search := c.Context.Query("search")
+	page, _ := strconv.Atoi(c.Ctx.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Ctx.DefaultQuery("page_size", "10"))
+	search := c.Ctx.Query("search")
 
 	if page < 1 {
 		page = 1
@@ -51,38 +60,14 @@ func (c *StaffController) GetStaffs() {
 		pageSize = 10
 	}
 
-	offset := (page - 1) * pageSize
+	// 使用 StaffService 获取物业员工列表
+	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
 
-	// 查询数据库
-	var staffs []models.PropertyStaff
-	var total int64
-
-	db := c.Container.GetDB()
-	query := db.Model(&models.PropertyStaff{})
-
-	// 如果有搜索关键词，添加搜索条件
-	if search != "" {
-		query = query.Where("phone LIKE ? OR property_name LIKE ?",
-			"%"+search+"%", "%"+search+"%")
-	}
-
-	// 获取总数
-	result := query.Count(&total)
-	if result.Error != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+	staffs, total, err := staffService.GetAllStaff(page, pageSize, search)
+	if err != nil {
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
-			"message": "查询物业员工数量失败",
-			"data":    nil,
-		})
-		return
-	}
-
-	// 获取分页数据
-	result = query.Limit(pageSize).Offset(offset).Find(&staffs)
-	if result.Error != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "查询物业员工列表失败",
+			"message": "查询物业员工列表失败: " + err.Error(),
 			"data":    nil,
 		})
 		return
@@ -103,7 +88,7 @@ func (c *StaffController) GetStaffs() {
 		})
 	}
 
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功",
 		"data": gin.H{
@@ -117,12 +102,12 @@ func (c *StaffController) GetStaffs() {
 }
 
 // GetStaff 获取单个物业员工详情
-// @Summary      Get Property Staff By ID
-// @Description  Get details of a specific property staff member by ID
+// @Summary      获取物业员工详情
+// @Description  根据ID获取特定物业员工的详细信息
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Property Staff ID" example:"1"
+// @Param        id path int true "物业员工ID" example:"1"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -131,10 +116,10 @@ func (c *StaffController) GetStaffs() {
 // @Security     BearerAuth
 func (c *StaffController) GetStaff() {
 	// 获取URL参数中的ID
-	idStr := c.Context.Param("id")
-	id, err := strconv.Atoi(idStr)
+	idStr := c.Ctx.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的ID参数",
 			"data":    nil,
@@ -142,33 +127,21 @@ func (c *StaffController) GetStaff() {
 		return
 	}
 
-	// 查询数据库
-	var staff models.PropertyStaff
-	db := c.Container.GetDB()
-	result := db.First(&staff, id)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.Context.JSON(http.StatusNotFound, gin.H{
+	// 使用 StaffService 获取物业员工详情
+	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
+	staff, err := staffService.GetStaffByIDWithDevices(uint(id))
+	if err != nil {
+		if err.Error() == "物业员工不存在" {
+			c.Ctx.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
 				"message": "物业员工不存在",
 				"data":    nil,
 			})
-		} else {
-			c.Context.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "查询物业员工失败: " + result.Error.Error(),
-				"data":    nil,
-			})
+			return
 		}
-		return
-	}
-
-	// 查询关联的设备
-	var devices []models.Device
-	if err := db.Model(&staff).Association("Devices").Find(&devices); err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
-			"message": "查询关联设备失败: " + err.Error(),
+			"message": "查询物业员工失败: " + err.Error(),
 			"data":    nil,
 		})
 		return
@@ -176,12 +149,12 @@ func (c *StaffController) GetStaff() {
 
 	// 提取设备ID
 	var deviceIDs []uint
-	for _, device := range devices {
+	for _, device := range staff.Devices {
 		deviceIDs = append(deviceIDs, device.ID)
 	}
 
 	// 返回物业员工信息
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功",
 		"data": gin.H{
@@ -214,22 +187,22 @@ type CreateStaffRequest struct {
 	DeviceIDs    []uint `json:"device_ids" example:"[1,2,3]"` // 关联的设备ID列表
 }
 
-// CreateStaff 添加新物业员工
-// @Summary      Create Property Staff
-// @Description  Create a new property staff account, with specified role, position and property
+// CreateStaff 创建新物业员工
+// @Summary      创建物业员工
+// @Description  创建一个新的物业员工
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        request body CreateStaffRequest true "Property staff information - including name, phone, username, password, property ID and role"
-// @Success      201  {object}  map[string]interface{} "Success response with created staff details"
-// @Failure      400  {object}  ErrorResponse "Bad request, phone or username already in use"
-// @Failure      500  {object}  ErrorResponse "Server error"
+// @Param        request body CreateStaffRequest true "物业员工信息"
+// @Success      201  {object}  map[string]interface{}
+// @Failure      400  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
 // @Router       /staffs [post]
 // @Security     BearerAuth
 func (c *StaffController) CreateStaff() {
 	var req CreateStaffRequest
-	if err := c.Context.ShouldBindJSON(&req); err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的请求参数: " + err.Error(),
 			"data":    nil,
@@ -237,32 +210,8 @@ func (c *StaffController) CreateStaff() {
 		return
 	}
 
-	// 检查手机号是否已存在
-	db := c.Container.GetDB()
-	var count int64
-	db.Model(&models.PropertyStaff{}).Where("phone = ?", req.Phone).Count(&count)
-	if count > 0 {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "手机号已被注册",
-			"data":    nil,
-		})
-		return
-	}
-
-	// 检查用户名是否已存在
-	db.Model(&models.PropertyStaff{}).Where("username = ?", req.Username).Count(&count)
-	if count > 0 {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "用户名已存在",
-			"data":    nil,
-		})
-		return
-	}
-
-	// 创建新物业员工
-	staff := models.PropertyStaff{
+	// 创建物业员工对象
+	staff := &models.PropertyStaff{
 		Phone:        req.Phone,
 		PropertyName: req.PropertyName,
 		Position:     req.Position,
@@ -273,13 +222,18 @@ func (c *StaffController) CreateStaff() {
 		Password:     req.Password,
 	}
 
-	// 开始事务
-	tx := db.Begin()
-
-	// 保存物业员工
-	if err := tx.Create(&staff).Error; err != nil {
-		tx.Rollback()
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+	// 使用 StaffService 创建物业员工
+	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
+	if err := staffService.CreateStaff(staff); err != nil {
+		if err.Error() == "手机号已被使用" || err.Error() == "用户名已存在" {
+			c.Ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": err.Error(),
+				"data":    nil,
+			})
+			return
+		}
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "创建物业员工失败: " + err.Error(),
 			"data":    nil,
@@ -289,49 +243,39 @@ func (c *StaffController) CreateStaff() {
 
 	// 关联设备
 	if len(req.DeviceIDs) > 0 {
-		// 查询所有关联的设备
-		var devices []models.Device
-		if err := tx.Where("id IN ?", req.DeviceIDs).Find(&devices).Error; err != nil {
-			tx.Rollback()
-			c.Context.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "查询关联设备失败: " + err.Error(),
-				"data":    nil,
-			})
-			return
-		}
+		// 获取设备服务
+		deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
 
-		// 创建关联关系
-		if err := tx.Model(&staff).Association("Devices").Append(&devices); err != nil {
-			tx.Rollback()
-			c.Context.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "关联设备失败: " + err.Error(),
-				"data":    nil,
-			})
-			return
+		// 为每个设备设置物业ID
+		for _, deviceID := range req.DeviceIDs {
+			updates := map[string]interface{}{
+				"property_id": staff.ID,
+			}
+			if _, err := deviceService.UpdateDevice(deviceID, updates); err != nil {
+				c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+					"code":    500,
+					"message": "关联设备失败: " + err.Error(),
+					"data":    nil,
+				})
+				return
+			}
 		}
 	}
 
-	// 提交事务
-	if err := tx.Commit().Error; err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "提交事务失败: " + err.Error(),
-			"data":    nil,
-		})
-		return
-	}
-
-	c.Context.JSON(http.StatusCreated, gin.H{
+	c.Ctx.JSON(http.StatusCreated, gin.H{
 		"code":    0,
 		"message": "成功创建物业员工",
 		"data": gin.H{
-			"id":         staff.ID,
-			"phone":      staff.Phone,
-			"username":   staff.Username,
-			"created_at": staff.CreatedAt,
-			"device_ids": req.DeviceIDs,
+			"id":            staff.ID,
+			"phone":         staff.Phone,
+			"property_name": staff.PropertyName,
+			"position":      staff.Position,
+			"role":          staff.Role,
+			"status":        staff.Status,
+			"username":      staff.Username,
+			"remark":        staff.Remark,
+			"device_ids":    req.DeviceIDs,
+			"created_at":    staff.CreatedAt,
 		},
 	})
 }
@@ -351,13 +295,13 @@ type UpdateStaffRequest struct {
 }
 
 // UpdateStaff 更新物业员工信息
-// @Summary      Update Property Staff
-// @Description  Update details of a property staff member with the specified ID
+// @Summary      更新物业员工
+// @Description  更新现有物业员工的信息
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Property Staff ID" example:"1"
-// @Param        request body UpdateStaffRequest true "Updated property staff information"
+// @Param        id path int true "物业员工ID" example:"1"
+// @Param        request body UpdateStaffRequest true "更新的物业员工信息"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -366,10 +310,10 @@ type UpdateStaffRequest struct {
 // @Security     BearerAuth
 func (c *StaffController) UpdateStaff() {
 	// 获取URL参数中的ID
-	idStr := c.Context.Param("id")
-	id, err := strconv.Atoi(idStr)
+	idStr := c.Ctx.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的ID参数",
 			"data":    nil,
@@ -378,8 +322,8 @@ func (c *StaffController) UpdateStaff() {
 	}
 
 	var req UpdateStaffRequest
-	if err := c.Context.ShouldBindJSON(&req); err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的请求参数: " + err.Error(),
 			"data":    nil,
@@ -387,196 +331,148 @@ func (c *StaffController) UpdateStaff() {
 		return
 	}
 
-	// 查询数据库
-	db := c.Container.GetDB()
-	var staff models.PropertyStaff
-	result := db.First(&staff, id)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.Context.JSON(http.StatusNotFound, gin.H{
+	// 构建更新字段映射
+	updates := make(map[string]interface{})
+	if req.Phone != "" {
+		updates["phone"] = req.Phone
+	}
+	if req.PropertyName != "" {
+		updates["property_name"] = req.PropertyName
+	}
+	if req.Position != "" {
+		updates["position"] = req.Position
+	}
+	if req.Role != "" {
+		updates["role"] = req.Role
+	}
+	if req.Status != "" {
+		updates["status"] = req.Status
+	}
+	if req.Remark != "" {
+		updates["remark"] = req.Remark
+	}
+	if req.Username != "" {
+		updates["username"] = req.Username
+	}
+	if req.Password != "" {
+		updates["password"] = req.Password
+	}
+
+	// 使用 StaffService 更新物业员工
+	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
+	staff, err := staffService.UpdateStaff(uint(id), updates)
+	if err != nil {
+		if err.Error() == "物业员工不存在" {
+			c.Ctx.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
 				"message": "物业员工不存在",
 				"data":    nil,
 			})
-		} else {
-			c.Context.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "查询物业员工失败: " + result.Error.Error(),
+			return
+		}
+		if err.Error() == "手机号已被其他物业员工使用" || err.Error() == "用户名已被其他物业员工使用" {
+			c.Ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": err.Error(),
 				"data":    nil,
 			})
+			return
 		}
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "更新物业员工失败: " + err.Error(),
+			"data":    nil,
+		})
 		return
 	}
 
-	// 更新字段
-	updateMap := make(map[string]interface{})
-
-	if req.Name != "" {
-		updateMap["name"] = req.Name
-	}
-
-	if req.Phone != "" && req.Phone != staff.Phone {
-		// 检查手机号是否已被其他用户使用
-		var count int64
-		db.Model(&models.PropertyStaff{}).Where("phone = ? AND id != ?", req.Phone, id).Count(&count)
-		if count > 0 {
-			c.Context.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": "手机号已被其他物业员工使用",
-				"data":    nil,
-			})
-			return
-		}
-		updateMap["phone"] = req.Phone
-	}
-
-	if req.PropertyName != "" {
-		updateMap["property_name"] = req.PropertyName
-	}
-
-	if req.Position != "" {
-		updateMap["position"] = req.Position
-	}
-
-	if req.Role != "" {
-		updateMap["role"] = req.Role
-	}
-
-	if req.Status != "" {
-		updateMap["status"] = req.Status
-	}
-
-	// Remark可以为空字符串，所以需要特殊处理
-	if req.Remark != staff.Remark {
-		updateMap["remark"] = req.Remark
-	}
-
-	if req.Username != "" && req.Username != staff.Username {
-		// 检查用户名是否已被其他用户使用
-		var count int64
-		db.Model(&models.PropertyStaff{}).Where("username = ? AND id != ?", req.Username, id).Count(&count)
-		if count > 0 {
-			c.Context.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": "用户名已被其他物业员工使用",
-				"data":    nil,
-			})
-			return
-		}
-		updateMap["username"] = req.Username
-	}
-
-	if req.Password != "" {
-		updateMap["password"] = req.Password
-	}
-
-	// 开始事务
-	tx := db.Begin()
-
-	// 更新数据库
-	if len(updateMap) > 0 {
-		result = tx.Model(&staff).Updates(updateMap)
-		if result.Error != nil {
-			tx.Rollback()
-			c.Context.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "更新物业员工失败: " + result.Error.Error(),
-				"data":    nil,
-			})
-			return
-		}
-	}
-
-	// 如果提供了设备ID列表，更新关联
-	var deviceIDs []uint
+	// 如果请求中包含设备ID列表，更新关联设备
 	if req.DeviceIDs != nil {
-		// 先删除所有现有关联
-		if err := tx.Model(&staff).Association("Devices").Clear(); err != nil {
-			tx.Rollback()
-			c.Context.JSON(http.StatusInternalServerError, gin.H{
+		// 获取设备服务
+		deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
+
+		// 清除现有关联 - 将属于该员工的所有设备的property_id设为NULL
+		devices, err := staffService.GetStaffDevices(uint(id))
+		if err != nil {
+			c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 				"code":    500,
-				"message": "清除设备关联失败: " + err.Error(),
-				"data":    nil,
-			})
-			return
-		}
-
-		// 如果有新的设备ID，添加新关联
-		if len(req.DeviceIDs) > 0 {
-			var devices []models.Device
-			if err := tx.Where("id IN ?", req.DeviceIDs).Find(&devices).Error; err != nil {
-				tx.Rollback()
-				c.Context.JSON(http.StatusInternalServerError, gin.H{
-					"code":    500,
-					"message": "查询关联设备失败: " + err.Error(),
-					"data":    nil,
-				})
-				return
-			}
-
-			if err := tx.Model(&staff).Association("Devices").Append(&devices); err != nil {
-				tx.Rollback()
-				c.Context.JSON(http.StatusInternalServerError, gin.H{
-					"code":    500,
-					"message": "关联设备失败: " + err.Error(),
-					"data":    nil,
-				})
-				return
-			}
-
-			deviceIDs = req.DeviceIDs
-		}
-	} else {
-		// 查询当前关联的设备ID
-		var devices []models.Device
-		if err := tx.Model(&staff).Association("Devices").Find(&devices); err != nil {
-			tx.Rollback()
-			c.Context.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "查询关联设备失败: " + err.Error(),
+				"message": "获取设备关联失败: " + err.Error(),
 				"data":    nil,
 			})
 			return
 		}
 
 		for _, device := range devices {
-			deviceIDs = append(deviceIDs, device.ID)
+			updates := map[string]interface{}{
+				"property_id": nil,
+			}
+			if _, err := deviceService.UpdateDevice(device.ID, updates); err != nil {
+				c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+					"code":    500,
+					"message": "清除设备关联失败: " + err.Error(),
+					"data":    nil,
+				})
+				return
+			}
+		}
+
+		// 添加新关联
+		for _, deviceID := range req.DeviceIDs {
+			updates := map[string]interface{}{
+				"property_id": uint(id),
+			}
+			if _, err := deviceService.UpdateDevice(deviceID, updates); err != nil {
+				c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+					"code":    500,
+					"message": "关联设备失败: " + err.Error(),
+					"data":    nil,
+				})
+				return
+			}
 		}
 	}
 
-	// 提交事务
-	if err := tx.Commit().Error; err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+	// 获取更新后的设备ID列表
+	devices, err := staffService.GetStaffDevices(uint(id))
+	if err != nil {
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
-			"message": "提交事务失败: " + err.Error(),
+			"message": "查询关联设备失败: " + err.Error(),
 			"data":    nil,
 		})
 		return
 	}
 
-	// 重新获取更新后的记录
-	db.First(&staff, id)
+	var deviceIDs []uint
+	for _, device := range devices {
+		deviceIDs = append(deviceIDs, device.ID)
+	}
 
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功更新物业员工",
 		"data": gin.H{
-			"id":         staff.ID,
-			"phone":      staff.Phone,
-			"username":   staff.Username,
-			"updated_at": staff.UpdatedAt,
-			"device_ids": deviceIDs,
+			"id":            staff.ID,
+			"phone":         staff.Phone,
+			"property_name": staff.PropertyName,
+			"position":      staff.Position,
+			"role":          staff.Role,
+			"status":        staff.Status,
+			"username":      staff.Username,
+			"remark":        staff.Remark,
+			"device_ids":    deviceIDs,
+			"updated_at":    staff.UpdatedAt,
 		},
 	})
 }
 
 // DeleteStaff 删除物业员工
-// @Summary      Delete Property Staff
-// @Description  Delete a property staff member with the specified ID
+// @Summary      删除物业员工
+// @Description  删除指定ID的物业员工
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Property Staff ID" example:"2"
+// @Param        id path int true "物业员工ID" example:"2"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -585,10 +481,10 @@ func (c *StaffController) UpdateStaff() {
 // @Security     BearerAuth
 func (c *StaffController) DeleteStaff() {
 	// 获取URL参数中的ID
-	idStr := c.Context.Param("id")
-	id, err := strconv.Atoi(idStr)
+	idStr := c.Ctx.Param("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的ID参数",
 			"data":    nil,
@@ -596,51 +492,130 @@ func (c *StaffController) DeleteStaff() {
 		return
 	}
 
-	// 查询数据库
-	db := c.Container.GetDB()
-	var staff models.PropertyStaff
-	result := db.First(&staff, id)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.Context.JSON(http.StatusNotFound, gin.H{
+	// 使用 StaffService 删除物业员工
+	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
+	if err := staffService.DeleteStaff(uint(id)); err != nil {
+		if err.Error() == "物业员工不存在" {
+			c.Ctx.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
 				"message": "物业员工不存在",
 				"data":    nil,
 			})
-		} else {
-			c.Context.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "查询物业员工失败: " + result.Error.Error(),
-				"data":    nil,
-			})
+			return
 		}
-		return
-	}
-
-	// 删除物业员工
-	result = db.Delete(&staff)
-	if result.Error != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
-			"message": "删除物业员工失败: " + result.Error.Error(),
+			"message": "删除物业员工失败: " + err.Error(),
 			"data":    nil,
 		})
 		return
 	}
 
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功删除物业员工",
 		"data":    nil,
 	})
 }
 
+// GetStaffsWithDevices 获取包含关联设备的物业员工列表
+// @Summary      获取带设备信息的物业员工列表
+// @Description  获取所有物业员工的列表及其关联的设备信息
+// @Tags         Staff
+// @Accept       json
+// @Produce      json
+// @Param        page query int false "页码，默认为1" example:"1"
+// @Param        page_size query int false "每页条数，默认为10" example:"10"
+// @Param        search query string false "搜索关键词(姓名、电话等)" example:"manager"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      500  {object}  ErrorResponse
+// @Router       /staffs/with-devices [get]
+// @Security     BearerAuth
+func (c *StaffController) GetStaffsWithDevices() {
+	// 获取分页参数
+	page, _ := strconv.Atoi(c.Ctx.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Ctx.DefaultQuery("page_size", "10"))
+	search := c.Ctx.Query("search")
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
+
+	// 使用 StaffService 获取物业员工列表
+	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
+
+	// 这里假设 StaffService 有一个获取带设备的员工列表的方法
+	// 如果没有，可以先获取员工列表，然后针对每个员工查询其设备
+	staffs, total, err := staffService.GetAllStaff(page, pageSize, search)
+	if err != nil {
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "查询物业员工列表失败: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 构建响应，包含设备信息
+	var staffResponses []gin.H
+	for _, staff := range staffs {
+		// 获取每个员工的设备
+		devices, err := staffService.GetStaffDevices(staff.ID)
+		if err != nil {
+			c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "查询员工设备失败: " + err.Error(),
+				"data":    nil,
+			})
+			return
+		}
+
+		// 提取设备ID和基本信息
+		var deviceList []gin.H
+		for _, device := range devices {
+			deviceList = append(deviceList, gin.H{
+				"id":            device.ID,
+				"name":          device.Name,
+				"serial_number": device.SerialNumber,
+				"location":      device.Location,
+				"status":        device.Status,
+			})
+		}
+
+		staffResponses = append(staffResponses, gin.H{
+			"id":            staff.ID,
+			"phone":         staff.Phone,
+			"property_name": staff.PropertyName,
+			"position":      staff.Position,
+			"role":          staff.Role,
+			"status":        staff.Status,
+			"username":      staff.Username,
+			"created_at":    staff.CreatedAt,
+			"updated_at":    staff.UpdatedAt,
+			"devices":       deviceList,
+		})
+	}
+
+	c.Ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "成功",
+		"data": gin.H{
+			"total":       total,
+			"page":        page,
+			"page_size":   pageSize,
+			"total_pages": (total + int64(pageSize) - 1) / int64(pageSize),
+			"data":        staffResponses,
+		},
+	})
+}
+
 // HandleStaffFunc 返回一个处理物业员工请求的Gin处理函数
 func HandleStaffFunc(container *container.ServiceContainer, method string) gin.HandlerFunc {
-	factory := NewControllerFactory(container)
-
 	return func(ctx *gin.Context) {
-		controller := factory.NewStaffController(ctx)
+		controller := NewStaffController(ctx, container)
 
 		switch method {
 		case "getStaffs":
@@ -653,6 +628,8 @@ func HandleStaffFunc(container *container.ServiceContainer, method string) gin.H
 			controller.UpdateStaff()
 		case "deleteStaff":
 			controller.DeleteStaff()
+		case "getStaffsWithDevices":
+			controller.GetStaffsWithDevices()
 		default:
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"code":    400,

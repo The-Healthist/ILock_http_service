@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"ilock-http-service/models"
+	"ilock-http-service/services"
 	"ilock-http-service/services/container"
 	"net/http"
 	"time"
@@ -9,18 +10,25 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// InterfaceEmergencyController 定义紧急情况控制器接口
+type InterfaceEmergencyController interface {
+	TriggerAlarm()
+	GetEmergencyContacts()
+	EmergencyUnlockAll()
+	NotifyAllUsers()
+}
+
 // EmergencyController 处理紧急情况相关的请求
 type EmergencyController struct {
-	BaseControllerImpl
+	Ctx       *gin.Context
+	Container *container.ServiceContainer
 }
 
 // NewEmergencyController 创建一个新的紧急情况控制器
-func (f *ControllerFactory) NewEmergencyController(ctx *gin.Context) *EmergencyController {
+func NewEmergencyController(ctx *gin.Context, container *container.ServiceContainer) *EmergencyController {
 	return &EmergencyController{
-		BaseControllerImpl: BaseControllerImpl{
-			Container: f.Container,
-			Context:   ctx,
-		},
+		Ctx:       ctx,
+		Container: container,
 	}
 }
 
@@ -49,21 +57,46 @@ type EmergencyNotificationRequest struct {
 	IsPublic   bool       `json:"is_public" example:"false"`                  // 是否为公开通知
 }
 
-// TriggerAlarm 处理触发紧急警报的请求
-// @Summary      触发紧急警报
-// @Description  触发紧急警报并通知相关人员
+// HandleEmergencyFunc 返回一个处理紧急情况请求的Gin处理函数
+func HandleEmergencyFunc(container *container.ServiceContainer, method string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		controller := NewEmergencyController(ctx, container)
+
+		switch method {
+		case "triggerAlarm":
+			controller.TriggerAlarm()
+		case "getEmergencyContacts":
+			controller.GetEmergencyContacts()
+		case "emergencyUnlockAll":
+			controller.EmergencyUnlockAll()
+		case "notifyAllUsers":
+			controller.NotifyAllUsers()
+		default:
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "无效的方法",
+				"data":    nil,
+			})
+		}
+	}
+}
+
+// 1. TriggerAlarm 处理触发紧急警报的请求
+// @Summary      Trigger Emergency Alarm
+// @Description  Trigger an emergency alarm and notify relevant personnel
 // @Tags         Emergency
 // @Accept       json
 // @Produce      json
-// @Param        request body EmergencyAlarmRequest true "警报请求参数"
+// @Param        request body EmergencyAlarmRequest true "Alarm request parameters"
 // @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Failure      400  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
 // @Router       /emergency/alarm [post]
+// @Security     BearerAuth
 func (c *EmergencyController) TriggerAlarm() {
 	var req EmergencyAlarmRequest
-	if err := c.Context.ShouldBindJSON(&req); err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的请求参数: " + err.Error(),
 			"data":    nil,
@@ -72,7 +105,7 @@ func (c *EmergencyController) TriggerAlarm() {
 	}
 
 	// 获取用户ID和角色
-	userID, exists := c.Context.Get("userID")
+	userID, exists := c.Ctx.Get("userID")
 	if !exists {
 		userID = uint(0) // 如果没有用户ID，设置为0表示系统自动触发
 	}
@@ -100,7 +133,7 @@ func (c *EmergencyController) TriggerAlarm() {
 
 	// 直接返回演示模式响应，不尝试保存到数据库
 	// 这样可以避免数据库错误
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功触发警报（演示模式）",
 		"data": gin.H{
@@ -114,23 +147,24 @@ func (c *EmergencyController) TriggerAlarm() {
 	})
 }
 
-// GetEmergencyContacts 处理获取紧急联系人列表的请求
-// @Summary      获取紧急联系人列表
-// @Description  获取系统中所有紧急联系人的列表
+// 2. GetEmergencyContacts 处理获取紧急联系人列表的请求
+// @Summary      Get Emergency Contacts
+// @Description  Get a list of all emergency contacts in the system
 // @Tags         Emergency
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Failure      500  {object}  ErrorResponse
 // @Router       /emergency/contacts [get]
+// @Security     BearerAuth
 func (c *EmergencyController) GetEmergencyContacts() {
 	// 获取紧急服务
-	emergencyService := c.Container.GetEmergencyService()
+	emergencyService := c.Container.GetService("emergency").(services.InterfaceEmergencyService)
 
 	// 获取联系人列表
 	contacts, err := emergencyService.GetEmergencyContacts()
 	if err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "获取联系人失败: " + err.Error(),
 			"data":    nil,
@@ -138,7 +172,7 @@ func (c *EmergencyController) GetEmergencyContacts() {
 		return
 	}
 
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功获取联系人列表",
 		"data": gin.H{
@@ -148,21 +182,22 @@ func (c *EmergencyController) GetEmergencyContacts() {
 	})
 }
 
-// EmergencyUnlockAll 处理紧急情况下解锁所有门的请求
-// @Summary      紧急解锁所有门
-// @Description  在紧急情况下解锁系统中所有门锁
+// 3. EmergencyUnlockAll 处理紧急情况下解锁所有门的请求
+// @Summary      Emergency Unlock All Doors
+// @Description  Unlock all doors in the system during an emergency
 // @Tags         Emergency
 // @Accept       json
 // @Produce      json
-// @Param        request body EmergencyUnlockRequest true "解锁请求参数"
+// @Param        request body EmergencyUnlockRequest true "Unlock request parameters"
 // @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Failure      400  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
 // @Router       /emergency/unlock-all [post]
+// @Security     BearerAuth
 func (c *EmergencyController) EmergencyUnlockAll() {
 	var req EmergencyUnlockRequest
-	if err := c.Context.ShouldBindJSON(&req); err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的请求参数",
 			"data":    nil,
@@ -171,11 +206,11 @@ func (c *EmergencyController) EmergencyUnlockAll() {
 	}
 
 	// 获取紧急服务
-	emergencyService := c.Container.GetEmergencyService()
+	emergencyService := c.Container.GetService("emergency").(services.InterfaceEmergencyService)
 
 	// 执行紧急解锁
 	if err := emergencyService.EmergencyUnlockAll(req.Reason); err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "紧急解锁失败: " + err.Error(),
 			"data":    nil,
@@ -183,7 +218,7 @@ func (c *EmergencyController) EmergencyUnlockAll() {
 		return
 	}
 
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功执行紧急解锁",
 		"data": gin.H{
@@ -193,21 +228,22 @@ func (c *EmergencyController) EmergencyUnlockAll() {
 	})
 }
 
-// NotifyAllUsers 处理向所有用户发送紧急通知的请求
-// @Summary      发送紧急通知
-// @Description  向系统中的所有用户发送紧急通知
+// 4. NotifyAllUsers 处理紧急情况下发送通知给所有用户的请求
+// @Summary      Notify All Users
+// @Description  Send notification to all users during an emergency
 // @Tags         Emergency
 // @Accept       json
 // @Produce      json
-// @Param        request body EmergencyNotificationRequest true "通知请求参数"
+// @Param        request body EmergencyNotificationRequest true "Notification request parameters"
 // @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Failure      400  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
 // @Router       /emergency/notify-all [post]
+// @Security     BearerAuth
 func (c *EmergencyController) NotifyAllUsers() {
 	var req EmergencyNotificationRequest
-	if err := c.Context.ShouldBindJSON(&req); err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的请求参数",
 			"data":    nil,
@@ -216,19 +252,19 @@ func (c *EmergencyController) NotifyAllUsers() {
 	}
 
 	// 获取用户ID和角色
-	userID, exists := c.Context.Get("userID")
+	userID, exists := c.Ctx.Get("userID")
 	if !exists {
 		userID = uint(0)
 	}
 
-	role, _ := c.Context.Get("role")
+	role, _ := c.Ctx.Get("role")
 	roleStr, ok := role.(string)
 	if !ok {
 		roleStr = "system"
 	}
 
 	// 获取紧急服务
-	emergencyService := c.Container.GetEmergencyService()
+	emergencyService := c.Container.GetService("emergency").(services.InterfaceEmergencyService)
 
 	// 创建通知对象
 	notification := &models.EmergencyNotification{
@@ -249,7 +285,7 @@ func (c *EmergencyController) NotifyAllUsers() {
 
 	// 发送通知
 	if err := emergencyService.NotifyAllUsers(notification); err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "发送通知失败: " + err.Error(),
 			"data":    nil,
@@ -257,7 +293,7 @@ func (c *EmergencyController) NotifyAllUsers() {
 		return
 	}
 
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功发送通知",
 		"data": gin.H{
@@ -270,30 +306,4 @@ func (c *EmergencyController) NotifyAllUsers() {
 			"sender_role": notification.SenderRole,
 		},
 	})
-}
-
-// HandleEmergencyFunc 返回一个处理紧急情况请求的Gin处理函数
-func HandleEmergencyFunc(container *container.ServiceContainer, method string) gin.HandlerFunc {
-	factory := NewControllerFactory(container)
-
-	return func(ctx *gin.Context) {
-		controller := factory.NewEmergencyController(ctx)
-
-		switch method {
-		case "triggerAlarm":
-			controller.TriggerAlarm()
-		case "getEmergencyContacts":
-			controller.GetEmergencyContacts()
-		case "emergencyUnlockAll":
-			controller.EmergencyUnlockAll()
-		case "notifyAllUsers":
-			controller.NotifyAllUsers()
-		default:
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": "无效的方法",
-				"data":    nil,
-			})
-		}
-	}
 }

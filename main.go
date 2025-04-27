@@ -10,7 +10,7 @@
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:8080
+// @host      39.108.49.167:20033
 // @BasePath  /api
 
 // @securityDefinitions.apikey  BearerAuth
@@ -35,12 +35,18 @@ import (
 )
 
 func main() {
+	// 初始化日志配置
+	if err := config.SetupLogger(); err != nil {
+		fmt.Printf("初始化日志配置失败: %v\n", err)
+		os.Exit(1)
+	}
+
 	// 加载.env文件
 	if err := godotenv.Load(); err != nil {
-		log.Printf("警告: 无法加载.env文件: %v", err)
+		config.Warning("无法加载.env文件: %v", err)
 		// 即使加载失败也继续执行，可能环境变量已经通过其他方式设置
 	} else {
-		log.Println("成功加载.env文件")
+		config.Info("成功加载.env文件")
 	}
 
 	// 获取配置
@@ -81,16 +87,14 @@ func main() {
 	// 初始化路由
 	r := routes.SetupRouter(db, cfg)
 
-	// 获取端口配置
-	port := os.Getenv("SERVER_PORT")
-	if port == "" {
-		port = "8080" // 默认端口
-	}
+	// 使用配置中的端口，而不是直接从环境变量获取
+	port := cfg.ServerPort
 
-	// 启动服务器
-	log.Printf("服务器启动在: http://localhost:%s", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatalf("启动服务器失败: %v", err)
+	// 启动服务器 - 注意监听所有接口(0.0.0.0)而不是只监听localhost
+	config.Info("服务器启动在: http://0.0.0.0:%s", port)
+	if err := r.Run("0.0.0.0:" + port); err != nil {
+		config.Error("启动服务器失败: %v", err)
+		os.Exit(1)
 	}
 }
 
@@ -118,7 +122,6 @@ func autoMigrate(db *gorm.DB) error {
 		&models.CallRecord{},
 		&models.AccessLog{},
 		&models.EmergencyLog{},
-		&models.Weather{},
 		&models.SystemLog{},
 	)
 

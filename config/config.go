@@ -1,8 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -13,6 +15,9 @@ var (
 
 // Config stores all configuration of the application
 type Config struct {
+	// Environment type
+	EnvType string
+
 	// Database
 	DBHost          string
 	DBUser          string
@@ -29,19 +34,23 @@ type Config struct {
 	RedisPort string
 	RedisDB   int
 
-	// Weather API
-	WeatherAPIKey string
-	WeatherAPIURL string
-
-	// 墨迹天气API
-	MojiWeatherID  string
-	MojiWeatherKey string
-	MojiWeatherURL string
-
 	// Aliyun RTC
 	AliyunAccessKey string
 	AliyunRTCAppID  string
 	AliyunRTCRegion string
+
+	// Tencent Cloud RTC
+	TencentSDKAppID   int    // 腾讯云 SDKAppID
+	TencentSecretKey  string // 腾讯云 SDKAppID 对应的密钥
+	TencentRTCEnabled bool   // 是否启用腾讯云RTC，如果为false则使用阿里云RTC
+
+	// MQTT配置
+	MQTTBrokerURL string // MQTT服务器地址，如 tcp://broker.example.com:1883
+	MQTTClientID  string // MQTT客户端ID
+	MQTTUsername  string // MQTT用户名
+	MQTTPassword  string // MQTT密码
+	MQTTQoS       int    // 服务质量 (0, 1, 2)
+	MQTTRetained  bool   // 是否保留消息
 
 	// JWT Authentication
 	JWTSecretKey string
@@ -50,44 +59,71 @@ type Config struct {
 	DefaultAdminPassword string
 }
 
-// LoadConfig loads config from environment variables
+// LoadConfig loads config from environment variables based on ENV_TYPE
 func LoadConfig() *Config {
+	// Get environment type (default to LOCAL if not set)
+	envType := getEnv("ENV_TYPE", "LOCAL")
+	prefix := ""
+
+	// Set prefix based on environment type
+	if strings.ToUpper(envType) == "LOCAL" {
+		prefix = "LOCAL_"
+	} else if strings.ToUpper(envType) == "SERVER" {
+		prefix = "SERVER_"
+	} else {
+		fmt.Printf("Warning: Unknown ENV_TYPE '%s', defaulting to LOCAL environment\n", envType)
+		prefix = "LOCAL_"
+		envType = "LOCAL"
+	}
+
+	fmt.Printf("Loading configuration for environment: %s\n", envType)
+
+	// 解析腾讯云SDKAppID
+	tencentAppID, _ := strconv.Atoi(getEnv("TENCENT_SDKAPPID", "0"))
+
 	return &Config{
-		// Database config
-		DBHost:          getEnv("DB_HOST", "localhost"),
-		DBUser:          getEnv("DB_USER", "root"),
-		DBPassword:      getEnv("DB_PASSWORD", "1090119your"),
-		DBName:          getEnv("DB_NAME", "ilock_db"),
-		DBPort:          getEnv("DB_PORT", "3308"),
-		DBMigrationMode: getEnv("DB_MIGRATION_MODE", "alter"), // 默认为alter模式, 更安全地修改表结构
+		// Environment type
+		EnvType: envType,
+
+		// Database config - use environment-specific variables if available
+		DBHost:          getEnvRequired(prefix + "DB_HOST"),
+		DBUser:          getEnvRequired(prefix + "DB_USER"),
+		DBPassword:      getEnvRequired(prefix + "DB_PASSWORD"),
+		DBName:          getEnvRequired(prefix + "DB_NAME"),
+		DBPort:          getEnvRequired(prefix + "DB_PORT"),
+		DBMigrationMode: getEnv(prefix+"DB_MIGRATION_MODE", "auto"),
 
 		// Server config
-		ServerPort: getEnv("SERVER_PORT", "8080"),
+		ServerPort: getEnv(prefix+"SERVER_PORT", getEnv("SERVER_PORT", "8080")),
 
 		// Redis config
-		RedisHost: getEnv("REDIS_HOST", "localhost"),
-		RedisPort: getEnv("REDIS_PORT", "6380"),
+		RedisHost: getEnv(prefix+"REDIS_HOST", getEnv("	REDIS_HOST", "localhost")),
+		RedisPort: getEnv(prefix+"REDIS_PORT", getEnv("REDIS_PORT", "6380")),
 		RedisDB:   getEnvAsInt("REDIS_DB", 0),
 
-		// Weather API config
-		WeatherAPIKey: getEnv("WEATHER_API_KEY", ""),
-		WeatherAPIURL: getEnv("WEATHER_API_URL", "https://api.weatherapi.com/v1"),
-
-		// 墨迹天气API config
-		MojiWeatherID:  getEnv("MOJI_WEATHER_ID", ""),
-		MojiWeatherKey: getEnv("MOJI_WEATHER_KEY", ""),
-		MojiWeatherURL: getEnv("MOJI_WEATHER_URL", "https://cn.apihz.cn/api/tianqi/tqybmoji15ip.php"),
-
 		// Aliyun RTC config
-		AliyunAccessKey: getEnv("ALIYUN_ACCESS_KEY", "67613a6a74064cad9859c8f794980cae"),
-		AliyunRTCAppID:  getEnv("ALIYUN_RTC_APP_ID", "md3fh5x4"),
-		AliyunRTCRegion: getEnv("ALIYUN_RTC_REGION", "cn-hangzhou"),
+		AliyunAccessKey: getEnvRequired("ALIYUN_ACCESS_KEY"),
+		AliyunRTCAppID:  getEnvRequired("ALIYUN_RTC_APP_ID"),
+		AliyunRTCRegion: getEnvRequired("ALIYUN_RTC_REGION"),
+
+		// Tencent Cloud RTC config
+		TencentSDKAppID:   tencentAppID,
+		TencentSecretKey:  getEnv("TENCENT_SECRET_KEY", ""),
+		TencentRTCEnabled: getEnvAsBool("TENCENT_RTC_ENABLED", false),
+
+		// MQTT配置
+		MQTTBrokerURL: getEnv("MQTT_BROKER_URL", "tcp://localhost:1883"),
+		MQTTClientID:  getEnv("MQTT_CLIENT_ID", "ilock_server"),
+		MQTTUsername:  getEnv("MQTT_USERNAME", ""),
+		MQTTPassword:  getEnv("MQTT_PASSWORD", ""),
+		MQTTQoS:       getEnvAsInt("MQTT_QOS", 1),
+		MQTTRetained:  getEnvAsBool("MQTT_RETAINED", false),
 
 		// JWT Config
 		JWTSecretKey: getEnv("JWT_SECRET_KEY", "ilock-secret-key-change-in-production"),
 
 		// Admin Config
-		DefaultAdminPassword: getEnv("DEFAULT_ADMIN_PASSWORD", "admin123"),
+		DefaultAdminPassword: getEnvRequired("DEFAULT_ADMIN_PASSWORD"),
 	}
 }
 
@@ -133,4 +169,12 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 		return value
 	}
 	return defaultValue
+}
+
+// 要求必须提供环境变量的辅助函数
+func getEnvRequired(key string) string {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		return value
+	}
+	panic(fmt.Sprintf("Required environment variable %s is not set", key))
 }

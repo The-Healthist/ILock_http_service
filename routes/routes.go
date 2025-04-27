@@ -3,7 +3,7 @@ package routes
 import (
 	"ilock-http-service/config"
 	"ilock-http-service/controllers"
-	_ "ilock-http-service/docs" // 导入 Swagger 文档，这行很重要！
+	_ "ilock-http-service/docs"
 	"ilock-http-service/middleware"
 	"ilock-http-service/services/container"
 
@@ -18,46 +18,52 @@ func SetupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	// 初始化 Gin
 	r := gin.Default()
 
+	// 添加 CORS 中间件
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:20033")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, Accept, Origin, Cache-Control, X-Requested-With")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
 	// 设置正确的Content-Type，确保UTF-8编码
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-
-		// 自定义JSON响应编码
 		c.Next()
 	})
-
 	// 创建服务容器
 	serviceContainer := container.NewServiceContainer(db, cfg, nil)
-
 	// 初始化中间件
 	middleware.InitAuthMiddleware(cfg)
-
 	// 添加 Swagger 文档路由
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// 注册路由
-	registerRoutes(r, db, serviceContainer)
+	registerRoutes(r, serviceContainer)
 	return r
 }
 
 // registerRoutes 配置所有API路由
 func registerRoutes(
 	r *gin.Engine,
-	db *gorm.DB,
 	container *container.ServiceContainer,
 ) {
 	// API 路由根路径
 	api := r.Group("/api")
 	// 注册公共路由
-	registerPublicRoutes(api, db, container)
+	registerPublicRoutes(api, container)
 	// 注册需要认证的路由
-	registerAuthenticatedRoutes(api, db, container)
+	registerAuthenticatedRoutes(api, container)
 }
 
 // registerPublicRoutes 注册公共路由
 func registerPublicRoutes(
 	api *gin.RouterGroup,
-	db *gorm.DB,
 	container *container.ServiceContainer,
 ) {
 	// 健康检查
@@ -66,105 +72,78 @@ func registerPublicRoutes(
 	})
 
 	// 认证路由
-	api.POST("/auth/login", func(c *gin.Context) {
-		auth := controllers.NewAuthController(db, container.GetJWTService())
-		auth.Login(c)
-	})
-
-	// RTC 路由
+	api.POST("/auth/login", controllers.HandleJWTFunc(container, "login"))
+	// 阿里云RTC路由
 	api.POST("/rtc/token", controllers.HandleRTCFunc(container, "getToken"))
 	api.POST("/rtc/call", controllers.HandleRTCFunc(container, "startCall"))
-
-	// Weather 路由
-	api.GET("/weather", controllers.HandleWeatherFunc(container, db, "getWeather"))
-	api.GET("/weather/device/:deviceId", controllers.HandleWeatherFunc(container, db, "getDeviceWeather"))
-	api.GET("/weather/forecast", controllers.HandleWeatherFunc(container, db, "get15DaysForecast"))
+	// 腾讯云RTC路由
+	api.POST("/trtc/usersig", controllers.HandleTencentRTCFunc(container, "getUserSig"))
+	api.POST("/trtc/call", controllers.HandleTencentRTCFunc(container, "startCall"))
+	
+	// MQTT通话和消息路由组 - 更新以匹配API文档
+	api.POST("/mqtt/call", controllers.HandleMQTTCallFunc(container, "initiateCall"))                // 修改路径从initiate到call
+	api.POST("/mqtt/controller/device", controllers.HandleMQTTCallFunc(container, "callerAction"))   // 修改路径从caller-action到controller/device
+	api.POST("/mqtt/controller/resident", controllers.HandleMQTTCallFunc(container, "calleeAction")) // 修改路径从callee-action到controller/resident
+	api.GET("/mqtt/session", controllers.HandleMQTTCallFunc(container, "getCallSession"))           // 修改为GET请求
+	api.POST("/mqtt/end-session", controllers.HandleMQTTCallFunc(container, "endCallSession"))
+	api.POST("/mqtt/device/status", controllers.HandleMQTTCallFunc(container, "publishDeviceStatus"))
+	api.POST("/mqtt/system/message", controllers.HandleMQTTCallFunc(container, "publishSystemMessage"))
+	
+	// 设备健康检测路由
+	api.POST("/device/status", controllers.HandleDeviceFunc(container, "checkDeviceHealth"))
 }
 
 // registerAuthenticatedRoutes 注册需要认证的路由
 func registerAuthenticatedRoutes(
 	api *gin.RouterGroup,
-	db *gorm.DB,
 	container *container.ServiceContainer,
 ) {
 	// 系统管理员路由组
 	adminGroup := api.Group("")
 	adminGroup.Use(middleware.AuthenticateSystemAdmin())
 
-	// 管理员API
-	adminRoutes := adminGroup.Group("/admins")
-	{
-		adminRoutes.GET("", controllers.HandleAdminFunc(container, "getAdmins"))
-		adminRoutes.GET("/:id", controllers.HandleAdminFunc(container, "getAdmin"))
-		adminRoutes.POST("", controllers.HandleAdminFunc(container, "createAdmin"))
-		adminRoutes.PUT("/:id", controllers.HandleAdminFunc(container, "updateAdmin"))
-		adminRoutes.DELETE("/:id", controllers.HandleAdminFunc(container, "deleteAdmin"))
-	}
+	// 管理员管理
+	adminGroup.GET("/admins", controllers.HandleAdminFunc(container, "getAdmins"))
+	adminGroup.GET("/admins/:id", controllers.HandleAdminFunc(container, "getAdmin"))
+	adminGroup.POST("/admins", controllers.HandleAdminFunc(container, "createAdmin"))
+	adminGroup.PUT("/admins/:id", controllers.HandleAdminFunc(container, "updateAdmin"))
+	adminGroup.DELETE("/admins/:id", controllers.HandleAdminFunc(container, "deleteAdmin"))
 
-	// 物业人员API (管理员权限)
-	adminStaffRoutes := adminGroup.Group("/staffs")
-	{
-		adminStaffRoutes.GET("", controllers.HandleStaffFunc(container, "getStaffs"))
-		adminStaffRoutes.GET("/:id", controllers.HandleStaffFunc(container, "getStaff"))
-		adminStaffRoutes.POST("", controllers.HandleStaffFunc(container, "createStaff"))
-		adminStaffRoutes.PUT("/:id", controllers.HandleStaffFunc(container, "updateStaff"))
-		adminStaffRoutes.DELETE("/:id", controllers.HandleStaffFunc(container, "deleteStaff"))
-	}
+	// 物业人员管理
+	adminGroup.GET("/staffs", controllers.HandleStaffFunc(container, "getStaffs"))
+	adminGroup.GET("/staffs/:id", controllers.HandleStaffFunc(container, "getStaff"))
+	adminGroup.POST("/staffs", controllers.HandleStaffFunc(container, "createStaff"))
+	adminGroup.PUT("/staffs/:id", controllers.HandleStaffFunc(container, "updateStaff"))
+	adminGroup.DELETE("/staffs/:id", controllers.HandleStaffFunc(container, "deleteStaff"))
 
-	// 居民API (管理员权限)
-	adminResidentRoutes := adminGroup.Group("/residents")
-	{
-		adminResidentRoutes.GET("", controllers.HandleResidentFunc(container, "getResidents"))
-		adminResidentRoutes.GET("/:id", controllers.HandleResidentFunc(container, "getResident"))
-		adminResidentRoutes.POST("", controllers.HandleResidentFunc(container, "createResident"))
-		adminResidentRoutes.PUT("/:id", controllers.HandleResidentFunc(container, "updateResident"))
-		adminResidentRoutes.DELETE("/:id", controllers.HandleResidentFunc(container, "deleteResident"))
-	}
+	// 居民管理
+	adminGroup.GET("/residents", controllers.HandleResidentFunc(container, "getResidents"))
+	adminGroup.GET("/residents/:id", controllers.HandleResidentFunc(container, "getResident"))
+	adminGroup.POST("/residents", controllers.HandleResidentFunc(container, "createResident"))
+	adminGroup.PUT("/residents/:id", controllers.HandleResidentFunc(container, "updateResident"))
+	adminGroup.DELETE("/residents/:id", controllers.HandleResidentFunc(container, "deleteResident"))
 
-	// 设备API (管理员权限)
-	adminDeviceRoutes := adminGroup.Group("/devices")
-	{
-		adminDeviceRoutes.GET("", controllers.HandleDeviceFunc(container, "getDevices"))
-		adminDeviceRoutes.GET("/:id", controllers.HandleDeviceFunc(container, "getDevice"))
-		adminDeviceRoutes.POST("", controllers.HandleDeviceFunc(container, "createDevice"))
-		adminDeviceRoutes.PUT("/:id", controllers.HandleDeviceFunc(container, "updateDevice"))
-		adminDeviceRoutes.DELETE("/:id", controllers.HandleDeviceFunc(container, "deleteDevice"))
-		adminDeviceRoutes.GET("/:id/status", controllers.HandleDeviceFunc(container, "getDeviceStatus"))
-	}
+	// 设备管理
+	adminGroup.GET("/devices", controllers.HandleDeviceFunc(container, "getDevices"))
+	adminGroup.GET("/devices/:id", controllers.HandleDeviceFunc(container, "getDevice"))
+	adminGroup.POST("/devices", controllers.HandleDeviceFunc(container, "createDevice"))
+	adminGroup.PUT("/devices/:id", controllers.HandleDeviceFunc(container, "updateDevice"))
+	adminGroup.DELETE("/devices/:id", controllers.HandleDeviceFunc(container, "deleteDevice"))
+	adminGroup.GET("/devices/:id/status", controllers.HandleDeviceFunc(container, "getDeviceStatus"))
 
-	// 物业人员路由
-	// staffRoutes := api.Group("/staff")
-	// staffRoutes.Use(middleware.AuthenticatePropertyStaff())
-	{
-		// 设备硬件相关接口
-		// deviceRoutes.GET("/:id/status", controllers.HandleDeviceFunc(container, "getDeviceStatus"))
-		// TODO: 以下接口需要硬件集成，后续实现
-		// PUT /api/device/{id}/configuration - 更新设备配置
-		// POST /api/device/{id}/reboot - 重启设备
-		// POST /api/device/{id}/unlock - 远程开门
-	}
-	// 居民路由，可以被系统管理员和物业人员访问
-	// residentRoutes := api.Group("/residents")
-	// residentRoutes.Use(middleware.AuthenticatePropertyStaff()) // 物业人员及以上权限可以访问
-	// {
-	// }
-	// 通话记录路由
-	callRoutes := api.Group("/calls")
-	callRoutes.Use(middleware.Authentication()) // 需要认证才能访问
-	{
-		callRoutes.GET("", controllers.HandleCallRecordFunc(container, "getCallRecords"))
-		callRoutes.GET("/:id", controllers.HandleCallRecordFunc(container, "getCallRecord"))
-		callRoutes.GET("/statistics", controllers.HandleCallRecordFunc(container, "getCallStatistics"))
-		callRoutes.GET("/device/:deviceId", controllers.HandleCallRecordFunc(container, "getDeviceCallRecords"))
-		callRoutes.GET("/resident/:residentId", controllers.HandleCallRecordFunc(container, "getResidentCallRecords"))
-		callRoutes.POST("/:id/feedback", controllers.HandleCallRecordFunc(container, "submitCallFeedback"))
-	}
+	// 通话记录管理
+	adminGroup.GET("/call_records", controllers.HandleCallRecordFunc(container, "getCallRecords"))
+	adminGroup.GET("/call_records/:id", controllers.HandleCallRecordFunc(container, "getCallRecord"))
+	adminGroup.GET("/call_records/statistics", controllers.HandleCallRecordFunc(container, "getCallStatistics"))
+	adminGroup.GET("/call_records/device/:deviceId", controllers.HandleCallRecordFunc(container, "getDeviceCallRecords"))
+	adminGroup.GET("/call_records/resident/:residentId", controllers.HandleCallRecordFunc(container, "getResidentCallRecords"))
+	adminGroup.POST("/call_records/:id/feedback", controllers.HandleCallRecordFunc(container, "submitCallFeedback"))
+	adminGroup.GET("/call_records/session", controllers.HandleCallRecordFunc(container, "getCallSession"))
 
 	// 紧急情况路由
 	emergencyRoutes := api.Group("/emergency")
 	emergencyRoutes.Use(middleware.AuthenticatePropertyStaff()) // 物业人员及以上权限可以访问
 	{
-		// 紧急情况相关的API
 		emergencyRoutes.POST("/alarm", controllers.HandleEmergencyFunc(container, "triggerAlarm"))
 		emergencyRoutes.GET("/contacts", controllers.HandleEmergencyFunc(container, "getEmergencyContacts"))
 		emergencyRoutes.POST("/unlock-all", controllers.HandleEmergencyFunc(container, "emergencyUnlockAll"))

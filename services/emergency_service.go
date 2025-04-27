@@ -9,6 +9,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// InterfaceEmergencyService defines the emergency service interface
+type InterfaceEmergencyService interface {
+	TriggerAlarm(alarm *models.EmergencyAlarm) error
+	GetEmergencyContacts() ([]models.EmergencyContact, error)
+	EmergencyUnlockAll(reason string) error
+	NotifyAllUsers(notificationData *models.EmergencyNotification) error
+}
+
 // EmergencyContact 紧急联系人
 type EmergencyContact struct {
 	ID          uint   `json:"id"`
@@ -46,14 +54,14 @@ type EmergencyService struct {
 }
 
 // NewEmergencyService 创建新的紧急事件服务
-func NewEmergencyService(db *gorm.DB, cfg *config.Config) *EmergencyService {
+func NewEmergencyService(db *gorm.DB, cfg *config.Config) InterfaceEmergencyService {
 	return &EmergencyService{
 		DB:     db,
 		Config: cfg,
 	}
 }
 
-// TriggerAlarm 触发紧急警报
+// 1 TriggerAlarm 触发紧急警报
 func (s *EmergencyService) TriggerAlarm(alarm *models.EmergencyAlarm) error {
 	// 设置时间戳和初始状态
 	now := time.Now()
@@ -79,7 +87,7 @@ func (s *EmergencyService) TriggerAlarm(alarm *models.EmergencyAlarm) error {
 	return nil
 }
 
-// GetEmergencyContacts 获取紧急联系人列表
+// 2 GetEmergencyContacts 获取紧急联系人列表
 func (s *EmergencyService) GetEmergencyContacts() ([]models.EmergencyContact, error) {
 	var contacts []models.EmergencyContact
 
@@ -91,7 +99,7 @@ func (s *EmergencyService) GetEmergencyContacts() ([]models.EmergencyContact, er
 	return contacts, nil
 }
 
-// EmergencyUnlockAll 紧急情况下解锁所有门
+// 3 EmergencyUnlockAll 紧急情况下解锁所有门
 func (s *EmergencyService) EmergencyUnlockAll(reason string) error {
 	if reason == "" {
 		return errors.New("必须提供紧急解锁原因")
@@ -130,7 +138,7 @@ func (s *EmergencyService) EmergencyUnlockAll(reason string) error {
 	return nil
 }
 
-// NotifyAllUsers 向所有用户发送紧急通知
+// 4 NotifyAllUsers 向所有用户发送紧急通知
 func (s *EmergencyService) NotifyAllUsers(notificationData *models.EmergencyNotification) error {
 	// 设置时间戳
 	now := time.Now()
