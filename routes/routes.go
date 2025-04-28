@@ -84,10 +84,12 @@ func registerPublicRoutes(
 		auth.Login(c)
 	})
 
-	// RTC 路由
+	// 阿里云RTC路由
 	api.POST("/rtc/token", controllers.HandleRTCFunc(container, "getToken"))
 	api.POST("/rtc/call", controllers.HandleRTCFunc(container, "startCall"))
-
+	// 腾讯云RTC路由
+	api.POST("/trtc/usersig", controllers.HandleTencentRTCFunc(container, "getUserSig"))
+	api.POST("/trtc/call", controllers.HandleTencentRTCFunc(container, "startCall"))
 }
 
 // registerAuthenticatedRoutes 注册需要认证的路由

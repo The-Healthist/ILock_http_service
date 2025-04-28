@@ -10,7 +10,7 @@
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:8080
+// @host      localhost:20033
 // @BasePath  /api
 
 // @securityDefinitions.apikey  BearerAuth
@@ -87,15 +87,12 @@ func main() {
 	// 初始化路由
 	r := routes.SetupRouter(db, cfg)
 
-	// 获取端口配置
-	port := os.Getenv("SERVER_PORT")
-	if port == "" {
-		port = "8080" // 默认端口
-	}
+	// 使用配置中的端口，而不是直接从环境变量获取
+	port := cfg.ServerPort
 
-	// 启动服务器
-	config.Info("服务器启动在: http://localhost:%s", port)
-	if err := r.Run(":" + port); err != nil {
+	// 启动服务器 - 注意监听所有接口(0.0.0.0)而不是只监听localhost
+	config.Info("服务器启动在: http://0.0.0.0:%s", port)
+	if err := r.Run("0.0.0.0:" + port); err != nil {
 		config.Error("启动服务器失败: %v", err)
 		os.Exit(1)
 	}

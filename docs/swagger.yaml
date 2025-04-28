@@ -125,6 +125,14 @@ definitions:
         example: Invalid username or password
         type: string
     type: object
+  controllers.GetUserSigRequest:
+    properties:
+      user_id:
+        example: user123
+        type: string
+    required:
+    - user_id
+    type: object
   controllers.LoginData:
     properties:
       created_at:
@@ -183,6 +191,16 @@ definitions:
     - device_id
     - name
     - phone
+    type: object
+  controllers.TencentCallRequest:
+    properties:
+      device_id:
+        type: string
+      resident_id:
+        type: string
+    required:
+    - device_id
+    - resident_id
     type: object
   controllers.TokenRequest:
     properties:
@@ -441,7 +459,7 @@ definitions:
       updated_at:
         type: string
     type: object
-host: localhost:8080
+host: localhost:20033
 info:
   contact:
     email: support@yourcompany.com
@@ -1621,6 +1639,72 @@ paths:
       summary: Update Property Staff
       tags:
       - Staff
+  /trtc/call:
+    post:
+      consumes:
+      - application/json
+      description: 在设备和居民之间发起腾讯云视频通话
+      parameters:
+      - description: 通话请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.TencentCallRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 发起腾讯云视频通话
+      tags:
+      - TencentRTC
+  /trtc/usersig:
+    post:
+      consumes:
+      - application/json
+      description: 获取用于进行腾讯云实时通信的UserSig凭证
+      parameters:
+      - description: UserSig请求参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.GetUserSigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取腾讯云TRTC UserSig
+      tags:
+      - TencentRTC
 securityDefinitions:
   BearerAuth:
     description: 'Enter the token with the `Bearer: ` prefix'

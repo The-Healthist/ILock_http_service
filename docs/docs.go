@@ -1803,6 +1803,104 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/trtc/call": {
+            "post": {
+                "description": "在设备和居民之间发起腾讯云视频通话",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TencentRTC"
+                ],
+                "summary": "发起腾讯云视频通话",
+                "parameters": [
+                    {
+                        "description": "通话请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.TencentCallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/trtc/usersig": {
+            "post": {
+                "description": "获取用于进行腾讯云实时通信的UserSig凭证",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "TencentRTC"
+                ],
+                "summary": "获取腾讯云TRTC UserSig",
+                "parameters": [
+                    {
+                        "description": "UserSig请求参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.GetUserSigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1976,6 +2074,18 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.GetUserSigRequest": {
+            "type": "object",
+            "required": [
+                "user_id"
+            ],
+            "properties": {
+                "user_id": {
+                    "type": "string",
+                    "example": "user123"
+                }
+            }
+        },
         "controllers.LoginData": {
             "type": "object",
             "properties": {
@@ -2055,6 +2165,21 @@ const docTemplate = `{
                 "phone": {
                     "type": "string",
                     "example": "13812345678"
+                }
+            }
+        },
+        "controllers.TencentCallRequest": {
+            "type": "object",
+            "required": [
+                "device_id",
+                "resident_id"
+            ],
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "resident_id": {
+                    "type": "string"
                 }
             }
         },
@@ -2451,7 +2576,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:8080",
+	Host:             "localhost:20033",
 	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "ILock HTTP Service API",

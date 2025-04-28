@@ -1,0 +1,195 @@
+package controllers
+
+import (
+	"fmt"
+	"ilock-http-service/services/container"
+	"ilock-http-service/utils"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+// TencentRTCController 处理腾讯云RTC相关的请求
+type TencentRTCController struct {
+	BaseControllerImpl
+}
+
+// NewTencentRTCController 创建一个新的腾讯云RTC控制器
+func (f *ControllerFactory) NewTencentRTCController(ctx *gin.Context) *TencentRTCController {
+	return &TencentRTCController{
+		BaseControllerImpl: BaseControllerImpl{
+			Container: f.Container,
+			Context:   ctx,
+		},
+	}
+}
+
+// GetUserSigRequest 表示获取UserSig的请求
+type GetUserSigRequest struct {
+	UserID string `json:"user_id" binding:"required" example:"user123"`
+}
+
+// GetUserSig 处理获取腾讯云RTC UserSig的请求
+// @Summary      获取腾讯云TRTC UserSig
+// @Description  获取用于进行腾讯云实时通信的UserSig凭证
+// @Tags         TencentRTC
+// @Accept       json
+// @Produce      json
+// @Param        request body GetUserSigRequest true "UserSig请求参数"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /trtc/usersig [post]
+func (c *TencentRTCController) GetUserSig() {
+	var req GetUserSigRequest
+	if err := c.Context.ShouldBindJSON(&req); err != nil {
+		c.Context.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的请求参数",
+			"data":    nil,
+		})
+		return
+	}
+
+	// 获取腾讯云RTC服务
+	tencentRTCService := c.Container.GetTencentRTCService()
+
+	// 生成UserSig
+	tokenInfo, err := tencentRTCService.GetUserSig(req.UserID)
+	if err != nil {
+		c.Context.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "生成UserSig失败: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 返回成功响应
+	c.Context.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "成功",
+		"data": gin.H{
+			"sdk_app_id":  tokenInfo.SDKAppID,
+			"user_id":     tokenInfo.UserID,
+			"user_sig":    tokenInfo.UserSig,
+			"expire_time": tokenInfo.ExpireTime.Format(time.RFC3339),
+		},
+	})
+}
+
+// TencentCallRequest 表示发起腾讯云通话的请求
+type TencentCallRequest struct {
+	DeviceID   string `json:"device_id" binding:"required"`
+	ResidentID string `json:"resident_id" binding:"required"`
+}
+
+// StartTencentCall 处理发起腾讯云视频通话的请求
+// @Summary      发起腾讯云视频通话
+// @Description  在设备和居民之间发起腾讯云视频通话
+// @Tags         TencentRTC
+// @Accept       json
+// @Produce      json
+// @Param        request body TencentCallRequest true "通话请求参数"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /trtc/call [post]
+func (c *TencentRTCController) StartTencentCall() {
+	var req TencentCallRequest
+	if err := c.Context.ShouldBindJSON(&req); err != nil {
+		c.Context.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的请求参数",
+			"data":    nil,
+		})
+		return
+	}
+
+	// 获取腾讯云RTC服务
+	tencentRTCService := c.Container.GetTencentRTCService()
+
+	// 创建通话通道
+	roomID, err := tencentRTCService.CreateVideoCall(req.DeviceID, req.ResidentID)
+	if err != nil {
+		c.Context.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "发起通话失败: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 为设备生成UserSig
+	deviceToken, err := tencentRTCService.GetUserSig(req.DeviceID)
+	if err != nil {
+		c.Context.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "生成设备UserSig失败: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 为居民生成UserSig
+	residentToken, err := tencentRTCService.GetUserSig(req.ResidentID)
+	if err != nil {
+		c.Context.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "生成居民UserSig失败: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 生成设备的用户名（游客+6位随机数）
+	deviceUsername := fmt.Sprintf("游客%06d", utils.RandomInt32()%1000000)
+
+	// 这里可以从数据库查询居民的用户名，暂时使用residentID
+	residentUsername := req.ResidentID
+
+	// 返回成功响应
+	c.Context.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "成功",
+		"data": gin.H{
+			"room_id":    roomID,
+			"sdk_app_id": deviceToken.SDKAppID,
+			"device": gin.H{
+				"id":          req.DeviceID,
+				"user_sig":    deviceToken.UserSig,
+				"expire_time": deviceToken.ExpireTime.Format(time.RFC3339),
+				"username":    deviceUsername,
+			},
+			"resident": gin.H{
+				"id":          req.ResidentID,
+				"user_sig":    residentToken.UserSig,
+				"expire_time": residentToken.ExpireTime.Format(time.RFC3339),
+				"username":    residentUsername,
+			},
+		},
+	})
+}
+
+// HandleTencentRTCFunc 返回一个处理腾讯云RTC请求的Gin处理函数
+func HandleTencentRTCFunc(container *container.ServiceContainer, method string) gin.HandlerFunc {
+	factory := NewControllerFactory(container)
+
+	return func(ctx *gin.Context) {
+		controller := factory.NewTencentRTCController(ctx)
+
+		switch method {
+		case "getUserSig":
+			controller.GetUserSig()
+		case "startCall":
+			controller.StartTencentCall()
+		default:
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "无效的方法",
+				"data":    nil,
+			})
+		}
+	}
+}

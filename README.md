@@ -47,7 +47,7 @@ iLock是一个基于Go语言开发的智能门禁管理系统，提供了强大�
 3. **验证部署**：
    - 脚本会自动验证服务是否成功启动
    - 访问`http://服务器IP:8080`检查服务运行状态
-   - 访问`http://服务器IP:8080/swagger/index.html`查看API文档
+   - 访问`http://服务器IP:20033/swagger/index.html`查看API文档
 
 ### 手动部署
 
@@ -132,9 +132,8 @@ iLock是一个基于Go语言开发的智能门禁管理系统，提供了强大�
 ## API文档
 
 系统集成了Swagger文档，部署后可以通过以下地址访问：
-```
-http://服务器IP:8080/swagger/index.html
-```
+
+http://服务器IP:20033/swagger/index.html
 
 主要API端点包括：
 

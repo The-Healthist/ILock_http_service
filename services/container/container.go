@@ -24,7 +24,10 @@ type ServiceContainer struct {
 	rtcService   *services.RTCService
 	redisService *services.RedisService
 
-	// 新增服务
+	// 新增腾讯云TRTC服务
+	tencentRTCService *services.TencentRTCService
+
+	// 其他服务
 	deviceService     *services.DeviceService
 	adminService      *services.AdminService
 	residentService   *services.ResidentService
@@ -74,7 +77,10 @@ func (c *ServiceContainer) initializeServices() {
 	c.rtcService = services.NewRTCService(c.config)
 	c.redisService = services.NewRedisService(c.config)
 
-	// 初始化新增服务
+	// 初始化腾讯云TRTC服务
+	c.tencentRTCService = services.NewTencentRTCService(c.config)
+
+	// 初始化其他服务
 	c.deviceService = services.NewDeviceService(c.db, c.config)
 	c.adminService = services.NewAdminService(c.db, c.config)
 	c.residentService = services.NewResidentService(c.db, c.config)
@@ -95,6 +101,13 @@ func (c *ServiceContainer) GetRTCService() *services.RTCService {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.rtcService
+}
+
+// GetTencentRTCService 获取腾讯云RTC服务
+func (c *ServiceContainer) GetTencentRTCService() *services.TencentRTCService {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.tencentRTCService
 }
 
 // GetRedisService 获取Redis服务
@@ -163,6 +176,8 @@ func (c *ServiceContainer) GetService(name string) interface{} {
 		return c.jwtService
 	case "rtc":
 		return c.rtcService
+	case "tencent_rtc":
+		return c.tencentRTCService
 	case "redis":
 		return c.redisService
 	case "device":

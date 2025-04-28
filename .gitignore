@@ -33,3 +33,4 @@
 
 # Database
 *.db 
+/docker-compose-frp
