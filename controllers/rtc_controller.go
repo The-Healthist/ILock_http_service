@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"fmt"
+	"ilock-http-service/services"
 	"ilock-http-service/services/container"
 	"ilock-http-service/utils"
 	"net/http"
@@ -10,18 +11,23 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// InterfaceRTCController 定义RTC控制器接口
+type InterfaceRTCController interface {
+	GetToken()
+	StartCall()
+}
+
 // RTCController 处理RTC相关的请求
 type RTCController struct {
-	BaseControllerImpl
+	Ctx       *gin.Context
+	Container *container.ServiceContainer
 }
 
 // NewRTCController 创建一个新的RTC控制器
-func (f *ControllerFactory) NewRTCController(ctx *gin.Context) *RTCController {
+func NewRTCController(ctx *gin.Context, container *container.ServiceContainer) *RTCController {
 	return &RTCController{
-		BaseControllerImpl: BaseControllerImpl{
-			Container: f.Container,
-			Context:   ctx,
-		},
+		Ctx:       ctx,
+		Container: container,
 	}
 }
 
@@ -31,21 +37,41 @@ type TokenRequest struct {
 	UserID    string `json:"user_id" binding:"required" example:"user456"`
 }
 
-// GetToken 处理获取RTC令牌的请求
-// @Summary      获取RTC令牌
-// @Description  获取用于进行实时通信的RTC令牌
+// HandleRTCFunc 返回一个处理RTC请求的Gin处理函数
+func HandleRTCFunc(container *container.ServiceContainer, method string) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		controller := NewRTCController(ctx, container)
+
+		switch method {
+		case "getToken":
+			controller.GetToken()
+		case "startCall":
+			controller.StartCall()
+		default:
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "无效的方法",
+				"data":    nil,
+			})
+		}
+	}
+}
+
+// 1. GetToken 处理获取RTC令牌的请求
+// @Summary      Get RTC Token
+// @Description  Get a RTC token for real-time communication
 // @Tags         RTC
 // @Accept       json
 // @Produce      json
-// @Param        request body TokenRequest true "令牌请求参数"
+// @Param        request body TokenRequest true "Token request parameters"
 // @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
-// @Router       /rtc/token [post]
+// @Failure      400  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/rtc/token [post]
 func (c *RTCController) GetToken() {
 	var req TokenRequest
-	if err := c.Context.ShouldBindJSON(&req); err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的请求参数",
 			"data":    nil,
@@ -54,12 +80,12 @@ func (c *RTCController) GetToken() {
 	}
 
 	// 获取服务
-	rtcService := c.Container.GetRTCService()
+	rtcService := c.Container.GetService("rtc").(services.InterfaceRTCService)
 
 	// 生成新令牌
 	tokenInfo, err := rtcService.GetToken(req.ChannelID, req.UserID)
 	if err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "生成令牌失败",
 			"data":    nil,
@@ -68,7 +94,7 @@ func (c *RTCController) GetToken() {
 	}
 
 	// 构建与示例格式完全匹配的响应
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功",
 		"data": gin.H{
@@ -87,21 +113,21 @@ type CallRequest struct {
 	ResidentID string `json:"resident_id" binding:"required"`
 }
 
-// StartCall 处理发起通话的请求
-// @Summary      发起视频通话
-// @Description  在设备和居民之间发起视频通话
+// 2. StartCall 处理发起通话的请求
+// @Summary      Start Video Call
+// @Description  Initiate a video call between a device and a resident
 // @Tags         RTC
 // @Accept       json
 // @Produce      json
-// @Param        request body CallRequest true "通话请求参数"
+// @Param        request body CallRequest true "Call request parameters"
 // @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
-// @Router       /rtc/call [post]
+// @Failure      400  {object}  ErrorResponse
+// @Failure      500  {object}  ErrorResponse
+// @Router       /api/rtc/call [post]
 func (c *RTCController) StartCall() {
 	var req CallRequest
-	if err := c.Context.ShouldBindJSON(&req); err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的请求参数",
 			"data":    nil,
@@ -109,12 +135,12 @@ func (c *RTCController) StartCall() {
 		return
 	}
 
-	rtcService := c.Container.GetRTCService()
+	rtcService := c.Container.GetService("rtc").(services.InterfaceRTCService)
 
 	// 创建通话通道
 	channelID, err := rtcService.CreateVideoCall(req.DeviceID, req.ResidentID)
 	if err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "发起通话失败",
 			"data":    nil,
@@ -125,7 +151,7 @@ func (c *RTCController) StartCall() {
 	// 为双方生成令牌
 	deviceToken, err := rtcService.GetToken(channelID, req.DeviceID)
 	if err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "生成设备令牌失败",
 			"data":    nil,
@@ -135,7 +161,7 @@ func (c *RTCController) StartCall() {
 
 	residentToken, err := rtcService.GetToken(channelID, req.ResidentID)
 	if err != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "生成居民令牌失败",
 			"data":    nil,
@@ -158,7 +184,7 @@ func (c *RTCController) StartCall() {
 	// }
 
 	// 构建新的标准响应格式
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功",
 		"data": gin.H{
@@ -178,26 +204,4 @@ func (c *RTCController) StartCall() {
 			},
 		},
 	})
-}
-
-// HandleRTCFunc 返回一个处理RTC请求的Gin处理函数
-func HandleRTCFunc(container *container.ServiceContainer, method string) gin.HandlerFunc {
-	factory := NewControllerFactory(container)
-
-	return func(ctx *gin.Context) {
-		controller := factory.NewRTCController(ctx)
-
-		switch method {
-		case "getToken":
-			controller.GetToken()
-		case "startCall":
-			controller.StartCall()
-		default:
-			ctx.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": "无效的方法",
-				"data":    nil,
-			})
-		}
-	}
 }

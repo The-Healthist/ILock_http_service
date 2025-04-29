@@ -8,6 +8,15 @@ import (
 	"gorm.io/gorm"
 )
 
+// InterfaceResidentService defines the resident service interface
+type InterfaceResidentService interface {
+	GetAllResidents(page int, pageSize int) ([]models.Resident, int64, error)
+	GetResidentByID(id uint) (*models.Resident, error)
+	CreateResident(resident *models.Resident) error
+	UpdateResident(id uint, updates map[string]interface{}) (*models.Resident, error)
+	DeleteResident(id uint) error
+}
+
 // ResidentService 提供居民相关的服务
 type ResidentService struct {
 	DB     *gorm.DB
@@ -15,23 +24,27 @@ type ResidentService struct {
 }
 
 // NewResidentService 创建一个新的居民服务
-func NewResidentService(db *gorm.DB, cfg *config.Config) *ResidentService {
+func NewResidentService(db *gorm.DB, cfg *config.Config) InterfaceResidentService {
 	return &ResidentService{
 		DB:     db,
 		Config: cfg,
 	}
 }
 
-// GetAllResidents 获取所有居民
-func (s *ResidentService) GetAllResidents() ([]models.Resident, error) {
+// 1 GetAllResidents 获取所有居民
+func (s *ResidentService) GetAllResidents(page int, pageSize int) ([]models.Resident, int64, error) {
 	var residents []models.Resident
-	if err := s.DB.Find(&residents).Error; err != nil {
-		return nil, err
+	var total int64
+	if err := s.DB.Model(&models.Resident{}).Count(&total).Error; err != nil {
+		return nil, 0, err
 	}
-	return residents, nil
+	if err := s.DB.Offset((page - 1) * pageSize).Limit(pageSize).Find(&residents).Error; err != nil {
+		return nil, 0, err
+	}
+	return residents, total, nil
 }
 
-// GetResidentByID 根据ID获取居民
+// 2 GetResidentByID 根据ID获取居民
 func (s *ResidentService) GetResidentByID(id uint) (*models.Resident, error) {
 	var resident models.Resident
 	if err := s.DB.First(&resident, id).Error; err != nil {
@@ -43,7 +56,7 @@ func (s *ResidentService) GetResidentByID(id uint) (*models.Resident, error) {
 	return &resident, nil
 }
 
-// CreateResident 创建新居民
+// 3 CreateResident 创建新居民
 func (s *ResidentService) CreateResident(resident *models.Resident) error {
 	// 验证手机号唯一性
 	var count int64
@@ -66,7 +79,7 @@ func (s *ResidentService) CreateResident(resident *models.Resident) error {
 	return s.DB.Create(resident).Error
 }
 
-// UpdateResident 更新居民信息
+// 4 UpdateResident 更新居民信息
 func (s *ResidentService) UpdateResident(id uint, updates map[string]interface{}) (*models.Resident, error) {
 	resident, err := s.GetResidentByID(id)
 	if err != nil {
@@ -103,7 +116,7 @@ func (s *ResidentService) UpdateResident(id uint, updates map[string]interface{}
 	return s.GetResidentByID(id)
 }
 
-// DeleteResident 删除居民
+// 5 DeleteResident 删除居民
 func (s *ResidentService) DeleteResident(id uint) error {
 	resident, err := s.GetResidentByID(id)
 	if err != nil {

@@ -8,6 +8,13 @@ import (
 	"github.com/tencentyun/tls-sig-api-v2-golang/tencentyun"
 )
 
+// InterfaceTencentRTCService defines the Tencent RTC service interface
+type InterfaceTencentRTCService interface {
+	GetUserSig(userID string) (*TencentRTCTokenInfo, error)
+	CreateVideoCall(deviceID, residentID string) (string, error)
+	GenPrivateMapKey(userID string, roomID string, expire int) (string, error)
+}
+
 // TencentRTCService 处理与腾讯云TRTC的实时通信
 type TencentRTCService struct {
 	Config *config.Config
@@ -23,13 +30,13 @@ type TencentRTCTokenInfo struct {
 }
 
 // NewTencentRTCService 创建一个新的腾讯云TRTC服务
-func NewTencentRTCService(cfg *config.Config) *TencentRTCService {
+func NewTencentRTCService(cfg *config.Config) InterfaceTencentRTCService {
 	return &TencentRTCService{
 		Config: cfg,
 	}
 }
 
-// GetUserSig 使用服务端方式生成腾讯云TRTC的UserSig
+// 1 GetUserSig 使用服务端方式生成腾讯云TRTC的UserSig
 // 这是推荐的正式环境使用方式，密钥只存储在服务端
 func (s *TencentRTCService) GetUserSig(userID string) (*TencentRTCTokenInfo, error) {
 	// 检查是否配置了必要的参数
@@ -64,7 +71,7 @@ func (s *TencentRTCService) GetUserSig(userID string) (*TencentRTCTokenInfo, err
 	return tokenInfo, nil
 }
 
-// CreateVideoCall 创建一个视频通话，返回一个唯一的房间ID
+// 2 CreateVideoCall 创建一个视频通话，返回一个唯一的房间ID
 func (s *TencentRTCService) CreateVideoCall(deviceID, residentID string) (string, error) {
 	// 为设备和居民生成一个通话房间号（RoomID）
 	// 在腾讯云TRTC中，可以使用同一个房间号让用户进入同一个通话
@@ -76,7 +83,7 @@ func (s *TencentRTCService) CreateVideoCall(deviceID, residentID string) (string
 	return roomID, nil
 }
 
-// GenPrivateMapKey 生成用于权限控制的PrivateMapKey (可选功能)
+// 3 GenPrivateMapKey 生成用于权限控制的PrivateMapKey (可选功能)
 func (s *TencentRTCService) GenPrivateMapKey(userID string, roomID string, expire int) (string, error) {
 	if s.Config.TencentSDKAppID == 0 || s.Config.TencentSecretKey == "" {
 		return "", fmt.Errorf("缺少必要的腾讯云TRTC配置")

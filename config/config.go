@@ -40,8 +40,18 @@ type Config struct {
 	AliyunRTCRegion string
 
 	// Tencent Cloud RTC
-	TencentSDKAppID  int    // 腾讯云 SDKAppID
-	TencentSecretKey string // 腾讯云 SDKAppID 对应的密钥
+	TencentSDKAppID   int    // 腾讯云 SDKAppID
+	TencentSecretKey  string // 腾讯云 SDKAppID 对应的密钥
+	TencentRTCEnabled bool   // 是否启用腾讯云RTC，如果为false则使用阿里云RTC
+
+	// MQTT配置
+	MQTTBrokerURL string // MQTT服务器地址，如 tcp://broker.example.com:1883
+	MQTTClientID  string // MQTT客户端ID
+	MQTTUsername  string // MQTT用户名
+	MQTTPassword  string // MQTT密码
+	MQTTQoS       int    // 服务质量 (0, 1, 2)
+	MQTTRetained  bool   // 是否保留消息
+
 	// JWT Authentication
 	JWTSecretKey string
 
@@ -97,8 +107,17 @@ func LoadConfig() *Config {
 		AliyunRTCRegion: getEnv("ALIYUN_RTC_REGION", "cn-hangzhou"),
 
 		// Tencent Cloud RTC config
-		TencentSDKAppID:  tencentAppID,
-		TencentSecretKey: getEnv("TENCENT_SECRET_KEY", ""),
+		TencentSDKAppID:   tencentAppID,
+		TencentSecretKey:  getEnv("TENCENT_SECRET_KEY", ""),
+		TencentRTCEnabled: getEnvAsBool("TENCENT_RTC_ENABLED", false),
+
+		// MQTT配置
+		MQTTBrokerURL: getEnv("MQTT_BROKER_URL", "tcp://localhost:1883"),
+		MQTTClientID:  getEnv("MQTT_CLIENT_ID", "ilock_server"),
+		MQTTUsername:  getEnv("MQTT_USERNAME", ""),
+		MQTTPassword:  getEnv("MQTT_PASSWORD", ""),
+		MQTTQoS:       getEnvAsInt("MQTT_QOS", 1),
+		MQTTRetained:  getEnvAsBool("MQTT_RETAINED", false),
 
 		// JWT Config
 		JWTSecretKey: getEnv("JWT_SECRET_KEY", "ilock-secret-key-change-in-production"),

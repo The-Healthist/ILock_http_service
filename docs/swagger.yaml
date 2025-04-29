@@ -1,5 +1,17 @@
 basePath: /api
 definitions:
+  controllers.CallActionRequest:
+    properties:
+      action:
+        type: string
+      call_id:
+        type: string
+      reason:
+        type: string
+    required:
+    - action
+    - call_id
+    type: object
   controllers.CallFeedbackRequest:
     properties:
       comment:
@@ -32,17 +44,21 @@ definitions:
   controllers.CreateAdminRequest:
     properties:
       email:
-        example: admin@ilock.com
+        example: admin@example.com
         type: string
       password:
-        example: admin123
+        example: Admin@123
+        type: string
+      phone:
+        example: "13800138000"
         type: string
       username:
-        example: admin1
+        example: admin123
         type: string
     required:
     - email
     - password
+    - phone
     - username
     type: object
   controllers.CreateStaffRequest:
@@ -133,6 +149,16 @@ definitions:
     required:
     - user_id
     type: object
+  controllers.InitiateCallRequest:
+    properties:
+      callee_id:
+        type: string
+      caller_id:
+        type: string
+    required:
+    - callee_id
+    - caller_id
+    type: object
   controllers.LoginData:
     properties:
       created_at:
@@ -172,6 +198,36 @@ definitions:
       message:
         example: Login successful
         type: string
+    type: object
+  controllers.PublishDeviceStatusRequest:
+    properties:
+      battery:
+        type: integer
+      device_id:
+        type: string
+      online:
+        type: boolean
+      properties:
+        additionalProperties: true
+        type: object
+    required:
+    - device_id
+    type: object
+  controllers.PublishSystemMessageRequest:
+    properties:
+      data:
+        additionalProperties: true
+        type: object
+      level:
+        type: string
+      message:
+        type: string
+      type:
+        type: string
+    required:
+    - level
+    - message
+    - type
     type: object
   controllers.ResidentRequest:
     properties:
@@ -217,13 +273,13 @@ definitions:
   controllers.UpdateAdminRequest:
     properties:
       email:
-        example: admin@ilock.com
+        example: admin@example.com
         type: string
       password:
         example: NewPassword@123
         type: string
-      username:
-        example: admin_updated
+      phone:
+        example: "13800138000"
         type: string
     type: object
   controllers.UpdateResidentRequest:
@@ -477,8 +533,7 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a list of all administrators in the system, with pagination
-        support
+      description: Get a list of all admin users with pagination
       parameters:
       - description: Page number, default is 1
         in: query
@@ -488,6 +543,10 @@ paths:
         in: query
         name: page_size
         type: integer
+      - description: Search keyword for username, phone, etc.
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -496,10 +555,6 @@ paths:
           schema:
             additionalProperties: true
             type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
@@ -512,11 +567,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new system administrator account and return the created
-        administrator info
+      description: Create a new admin user
       parameters:
-      - description: Administrator information - username, password and email are
-          required
+      - description: Admin information
         in: body
         name: request
         required: true
@@ -526,30 +579,30 @@ paths:
       - application/json
       responses:
         "201":
-          description: Success response with created admin details
+          description: Created
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad request or username already exists
+          description: Bad Request
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
         "500":
-          description: Server error
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Create Administrator
+      summary: Create Admin
       tags:
       - Admin
   /admins/{id}:
     delete:
       consumes:
       - application/json
-      description: Delete an administrator with the specified ID
+      description: Delete an admin user with the specified ID
       parameters:
-      - description: Administrator ID
+      - description: Admin ID
         in: path
         name: id
         required: true
@@ -576,15 +629,15 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Delete Administrator
+      summary: Delete Admin
       tags:
       - Admin
     get:
       consumes:
       - application/json
-      description: Get details of a specific administrator by ID
+      description: Get details of a specific admin by ID
       parameters:
-      - description: Administrator ID
+      - description: Admin ID
         in: path
         name: id
         required: true
@@ -617,14 +670,14 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update details of an administrator with the specified ID
+      description: Update an existing admin user
       parameters:
-      - description: Administrator ID
+      - description: Admin ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Updated administrator information
+      - description: Updated admin information
         in: body
         name: request
         required: true
@@ -652,9 +705,226 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Update Administrator
+      summary: Update Admin
       tags:
       - Admin
+  /api/mqtt/callee-action:
+    post:
+      consumes:
+      - application/json
+      description: Process callee's reject, hangup or timeout actions
+      parameters:
+      - description: Call action request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CallActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Handle MQTT Callee Action
+      tags:
+      - MQTT Call
+  /api/mqtt/caller-action:
+    post:
+      consumes:
+      - application/json
+      description: Process caller's cancel or hangup actions
+      parameters:
+      - description: Call action request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CallActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Handle MQTT Caller Action
+      tags:
+      - MQTT Call
+  /api/mqtt/device/status:
+    post:
+      consumes:
+      - application/json
+      description: Publish device status information via MQTT
+      parameters:
+      - description: Device status information
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.PublishDeviceStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Publish Device Status
+      tags:
+      - MQTT
+  /api/mqtt/initiate:
+    post:
+      consumes:
+      - application/json
+      description: Start a new call via MQTT
+      parameters:
+      - description: Call initiation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.InitiateCallRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Initiate MQTT Call
+      tags:
+      - MQTT Call
+  /api/mqtt/system/message:
+    post:
+      consumes:
+      - application/json
+      description: Publish system message via MQTT
+      parameters:
+      - description: System message information
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.PublishSystemMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Publish System Message
+      tags:
+      - MQTT
+  /api/rtc/call:
+    post:
+      consumes:
+      - application/json
+      description: Initiate a video call between a device and a resident
+      parameters:
+      - description: Call request parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CallRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Start Video Call
+      tags:
+      - RTC
+  /api/rtc/token:
+    post:
+      consumes:
+      - application/json
+      description: Get a RTC token for real-time communication
+      parameters:
+      - description: Token request parameters
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.TokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Get RTC Token
+      tags:
+      - RTC
   /auth/login:
     post:
       consumes:
@@ -721,6 +991,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Call Records
       tags:
       - CallRecord
@@ -755,6 +1027,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Call Record By ID
       tags:
       - CallRecord
@@ -795,6 +1069,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Submit Call Feedback
       tags:
       - CallRecord
@@ -837,6 +1113,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Device Call Records
       tags:
       - CallRecord
@@ -879,6 +1157,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Resident Call Records
       tags:
       - CallRecord
@@ -899,6 +1179,8 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
       summary: Get Call Statistics
       tags:
       - CallRecord
@@ -925,7 +1207,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - BearerAuth: []
       summary: 获取所有设备
       tags:
       - device
@@ -956,7 +1238,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - BearerAuth: []
       summary: 创建新设备
       tags:
       - device
@@ -989,7 +1271,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - BearerAuth: []
       summary: 删除设备
       tags:
       - device
@@ -1023,7 +1305,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - BearerAuth: []
       summary: 获取单个设备
       tags:
       - device
@@ -1063,7 +1345,7 @@ paths:
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
-      - ApiKeyAuth: []
+      - BearerAuth: []
       summary: 更新设备信息
       tags:
       - device
@@ -1103,9 +1385,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: 触发紧急警报并通知相关人员
+      description: Trigger an emergency alarm and notify relevant personnel
       parameters:
-      - description: 警报请求参数
+      - description: Alarm request parameters
         in: body
         name: request
         required: true
@@ -1122,21 +1404,21 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/controllers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
-      summary: 触发紧急警报
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Trigger Emergency Alarm
       tags:
       - Emergency
   /emergency/contacts:
     get:
       consumes:
       - application/json
-      description: 获取系统中所有紧急联系人的列表
+      description: Get a list of all emergency contacts in the system
       produces:
       - application/json
       responses:
@@ -1148,18 +1430,19 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
-      summary: 获取紧急联系人列表
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Emergency Contacts
       tags:
       - Emergency
   /emergency/notify-all:
     post:
       consumes:
       - application/json
-      description: 向系统中的所有用户发送紧急通知
+      description: Send notification to all users during an emergency
       parameters:
-      - description: 通知请求参数
+      - description: Notification request parameters
         in: body
         name: request
         required: true
@@ -1176,23 +1459,23 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/controllers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
-      summary: 发送紧急通知
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Notify All Users
       tags:
       - Emergency
   /emergency/unlock-all:
     post:
       consumes:
       - application/json
-      description: 在紧急情况下解锁系统中所有门锁
+      description: Unlock all doors in the system during an emergency
       parameters:
-      - description: 解锁请求参数
+      - description: Unlock request parameters
         in: body
         name: request
         required: true
@@ -1209,14 +1492,14 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/controllers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
-      summary: 紧急解锁所有门
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Emergency Unlock All Doors
       tags:
       - Emergency
   /residents:
@@ -1391,72 +1674,6 @@ paths:
       summary: Update Resident
       tags:
       - Resident
-  /rtc/call:
-    post:
-      consumes:
-      - application/json
-      description: 在设备和居民之间发起视频通话
-      parameters:
-      - description: 通话请求参数
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/controllers.CallRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: 发起视频通话
-      tags:
-      - RTC
-  /rtc/token:
-    post:
-      consumes:
-      - application/json
-      description: 获取用于进行实时通信的RTC令牌
-      parameters:
-      - description: 令牌请求参数
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/controllers.TokenRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties: true
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties: true
-            type: object
-      summary: 获取RTC令牌
-      tags:
-      - RTC
   /staffs:
     get:
       consumes:
@@ -1496,11 +1713,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new property staff account, with specified role, position
-        and property
+      description: Create a new property staff member
       parameters:
-      - description: Property staff information - including name, phone, username,
-          password, property ID and role
+      - description: Property staff information
         in: body
         name: request
         required: true
@@ -1510,16 +1725,16 @@ paths:
       - application/json
       responses:
         "201":
-          description: Success response with created staff details
+          description: Created
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad request, phone or username already in use
+          description: Bad Request
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
         "500":
-          description: Server error
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
@@ -1601,7 +1816,7 @@ paths:
     put:
       consumes:
       - application/json
-      description: Update details of a property staff member with the specified ID
+      description: Update an existing property staff member
       parameters:
       - description: Property Staff ID
         in: path
@@ -1639,13 +1854,49 @@ paths:
       summary: Update Property Staff
       tags:
       - Staff
+  /staffs/with-devices:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all property staff members with their associated
+        devices
+      parameters:
+      - description: Page number, default is 1
+        in: query
+        name: page
+        type: integer
+      - description: Items per page, default is 10
+        in: query
+        name: page_size
+        type: integer
+      - description: Search keyword for name, phone, etc.
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get Property Staff List With Devices
+      tags:
+      - Staff
   /trtc/call:
     post:
       consumes:
       - application/json
-      description: 在设备和居民之间发起腾讯云视频通话
+      description: Initiate a Tencent Cloud video call between a device and a resident
       parameters:
-      - description: 通话请求参数
+      - description: Call request parameters
         in: body
         name: request
         required: true
@@ -1662,23 +1913,21 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/controllers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
-      summary: 发起腾讯云视频通话
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Start Tencent Video Call
       tags:
       - TencentRTC
   /trtc/usersig:
     post:
       consumes:
       - application/json
-      description: 获取用于进行腾讯云实时通信的UserSig凭证
+      description: Get a UserSig credential for Tencent Cloud real-time communication
       parameters:
-      - description: UserSig请求参数
+      - description: UserSig request parameters
         in: body
         name: request
         required: true
@@ -1695,14 +1944,12 @@ paths:
         "400":
           description: Bad Request
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/controllers.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            additionalProperties: true
-            type: object
-      summary: 获取腾讯云TRTC UserSig
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Get Tencent TRTC UserSig
       tags:
       - TencentRTC
 securityDefinitions:

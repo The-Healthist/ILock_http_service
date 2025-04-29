@@ -2,26 +2,34 @@ package controllers
 
 import (
 	"ilock-http-service/models"
+	"ilock-http-service/services"
 	"ilock-http-service/services/container"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
+
+// InterfaceResidentController 定义居民控制器接口
+type InterfaceResidentController interface {
+	GetResidents()
+	GetResident()
+	CreateResident()
+	UpdateResident()
+	DeleteResident()
+}
 
 // ResidentController 处理居民相关的请求
 type ResidentController struct {
-	BaseControllerImpl
+	Ctx       *gin.Context
+	Container *container.ServiceContainer
 }
 
 // NewResidentController 创建一个新的居民控制器
-func (f *ControllerFactory) NewResidentController(ctx *gin.Context) *ResidentController {
+func NewResidentController(ctx *gin.Context, container *container.ServiceContainer) *ResidentController {
 	return &ResidentController{
-		BaseControllerImpl: BaseControllerImpl{
-			Container: f.Container,
-			Context:   ctx,
-		},
+		Ctx:       ctx,
+		Container: container,
 	}
 }
 
@@ -53,14 +61,21 @@ type UpdateResidentRequest struct {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /residents [get]
 func (c *ResidentController) GetResidents() {
-	var residents []models.Resident
+	// 获取分页参数
+	page, _ := strconv.Atoi(c.Ctx.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.Ctx.DefaultQuery("page_size", "10"))
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 100 {
+		pageSize = 10
+	}
 
-	// 使用 Container 获取数据库连接
-	db := c.Container.GetDB()
-
-	result := db.Find(&residents)
-	if result.Error != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+	// 使用 ResidentService 获取居民列表
+	residentService := c.Container.GetService("resident").(services.InterfaceResidentService)
+	residents, total, err := residentService.GetAllResidents(page, pageSize)
+	if err != nil {
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "获取居民列表失败",
 			"data":    nil,
@@ -68,10 +83,16 @@ func (c *ResidentController) GetResidents() {
 		return
 	}
 
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功",
-		"data":    residents,
+		"data": gin.H{
+			"total":       total,
+			"page":        page,
+			"page_size":   pageSize,
+			"total_pages": (total + int64(pageSize) - 1) / int64(pageSize),
+			"data":        residents,
+		},
 	})
 }
 
@@ -89,9 +110,9 @@ func (c *ResidentController) GetResidents() {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /residents/{id} [get]
 func (c *ResidentController) GetResident() {
-	id := c.Context.Param("id")
+	id := c.Ctx.Param("id")
 	if id == "" {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "居民ID不能为空",
 			"data":    nil,
@@ -99,22 +120,29 @@ func (c *ResidentController) GetResident() {
 		return
 	}
 
-	var resident models.Resident
+	idUint, err := strconv.ParseUint(id, 10, 32)
+	if err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的居民ID",
+			"data":    nil,
+		})
+		return
+	}
 
-	// 使用 Container 获取数据库连接
-	db := c.Container.GetDB()
-
-	result := db.First(&resident, id)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			c.Context.JSON(http.StatusNotFound, gin.H{
+	// 使用 ResidentService 获取居民详情
+	residentService := c.Container.GetService("resident").(services.InterfaceResidentService)
+	resident, err := residentService.GetResidentByID(uint(idUint))
+	if err != nil {
+		if err.Error() == "居民不存在" {
+			c.Ctx.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
-				"message": "居民不存在",
+				"message": err.Error(),
 				"data":    nil,
 			})
 			return
 		}
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "获取居民信息失败",
 			"data":    nil,
@@ -122,7 +150,7 @@ func (c *ResidentController) GetResident() {
 		return
 	}
 
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "成功",
 		"data":    resident,
@@ -143,8 +171,8 @@ func (c *ResidentController) GetResident() {
 // @Router       /residents [post]
 func (c *ResidentController) CreateResident() {
 	var req ResidentRequest
-	if err := c.Context.ShouldBindJSON(&req); err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的请求参数",
 			"data":    nil,
@@ -152,49 +180,35 @@ func (c *ResidentController) CreateResident() {
 		return
 	}
 
-	// 使用 Container 获取数据库连接
-	db := c.Container.GetDB()
-
-	// 检查手机号是否已存在
-	var existingResident models.Resident
-	if err := db.Where("phone = ?", req.Phone).First(&existingResident).Error; err == nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "手机号已被使用",
-			"data":    nil,
-		})
-		return
-	}
-
-	// 检查设备是否存在
-	var device models.Device
-	if err := db.First(&device, req.DeviceID).Error; err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "设备不存在",
-			"data":    nil,
-		})
-		return
-	}
-
-	// 创建新居民
-	resident := models.Resident{
+	// 创建居民对象
+	resident := &models.Resident{
 		Name:     req.Name,
 		Email:    req.Email,
 		Phone:    req.Phone,
 		DeviceID: req.DeviceID,
+		// 密码将在 ResidentService 中处理
 	}
 
-	if result := db.Create(&resident); result.Error != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+	// 使用 ResidentService 创建居民
+	residentService := c.Container.GetService("resident").(services.InterfaceResidentService)
+	if err := residentService.CreateResident(resident); err != nil {
+		if err.Error() == "手机号已被使用" || err.Error() == "设备不存在" {
+			c.Ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": err.Error(),
+				"data":    nil,
+			})
+			return
+		}
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
-			"message": "创建居民失败",
+			"message": "创建居民失败: " + err.Error(),
 			"data":    nil,
 		})
 		return
 	}
 
-	c.Context.JSON(http.StatusCreated, gin.H{
+	c.Ctx.JSON(http.StatusCreated, gin.H{
 		"code":    0,
 		"message": "居民创建成功",
 		"data":    resident,
@@ -216,9 +230,9 @@ func (c *ResidentController) CreateResident() {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /residents/{id} [put]
 func (c *ResidentController) UpdateResident() {
-	id := c.Context.Param("id")
+	id := c.Ctx.Param("id")
 	if id == "" {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的居民ID",
 			"data":    nil,
@@ -226,9 +240,9 @@ func (c *ResidentController) UpdateResident() {
 		return
 	}
 
-	_, err := strconv.Atoi(id)
+	idUint, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的居民ID",
 			"data":    nil,
@@ -237,8 +251,8 @@ func (c *ResidentController) UpdateResident() {
 	}
 
 	var req UpdateResidentRequest
-	if err := c.Context.ShouldBindJSON(&req); err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的请求参数",
 			"data":    nil,
@@ -246,79 +260,50 @@ func (c *ResidentController) UpdateResident() {
 		return
 	}
 
-	// 使用 Container 获取数据库连接
-	db := c.Container.GetDB()
-
-	// 查找居民
-	var resident models.Resident
-	if err := db.First(&resident, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.Context.JSON(http.StatusNotFound, gin.H{
-				"code":    404,
-				"message": "居民不存在",
-				"data":    nil,
-			})
-			return
-		}
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "获取居民信息失败",
-			"data":    nil,
-		})
-		return
-	}
-
-	// 验证更新字段
-
-	// 检查手机号是否已被其他居民使用
-	if req.Phone != "" && req.Phone != resident.Phone {
-		var count int64
-		db.Model(&models.Resident{}).Where("phone = ? AND id != ?", req.Phone, id).Count(&count)
-		if count > 0 {
-			c.Context.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": "手机号已被使用",
-				"data":    nil,
-			})
-			return
-		}
-	}
-
-	// 更新可选字段
+	// 构建更新字段映射
+	updates := make(map[string]interface{})
 	if req.Name != "" {
-		resident.Name = req.Name
+		updates["name"] = req.Name
 	}
 	if req.Email != "" {
-		resident.Email = req.Email
+		updates["email"] = req.Email
 	}
 	if req.Phone != "" {
-		resident.Phone = req.Phone
+		updates["phone"] = req.Phone
 	}
 	if req.DeviceID != 0 {
-		// 检查设备是否存在
-		var device models.Device
-		if err := db.First(&device, req.DeviceID).Error; err != nil {
-			c.Context.JSON(http.StatusBadRequest, gin.H{
-				"code":    400,
-				"message": "设备不存在",
+		updates["device_id"] = req.DeviceID
+	}
+
+	// 使用 ResidentService 更新居民
+	residentService := c.Container.GetService("resident").(services.InterfaceResidentService)
+	resident, err := residentService.UpdateResident(uint(idUint), updates)
+	if err != nil {
+		if err.Error() == "居民不存在" {
+			c.Ctx.JSON(http.StatusNotFound, gin.H{
+				"code":    404,
+				"message": err.Error(),
 				"data":    nil,
 			})
 			return
 		}
-		resident.DeviceID = req.DeviceID
-	}
-
-	// 保存更新
-	if result := db.Save(&resident); result.Error != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		if err.Error() == "手机号已被使用" || err.Error() == "设备不存在" {
+			c.Ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": err.Error(),
+				"data":    nil,
+			})
+			return
+		}
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
-			"message": "更新居民失败",
+			"message": "更新居民失败: " + err.Error(),
 			"data":    nil,
 		})
 		return
 	}
 
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "居民更新成功",
 		"data":    resident,
@@ -339,9 +324,9 @@ func (c *ResidentController) UpdateResident() {
 // @Failure      500  {object}  ErrorResponse
 // @Router       /residents/{id} [delete]
 func (c *ResidentController) DeleteResident() {
-	id := c.Context.Param("id")
+	id := c.Ctx.Param("id")
 	if id == "" {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的居民ID",
 			"data":    nil,
@@ -349,9 +334,9 @@ func (c *ResidentController) DeleteResident() {
 		return
 	}
 
-	_, err := strconv.Atoi(id)
+	idUint, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
-		c.Context.JSON(http.StatusBadRequest, gin.H{
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
 			"code":    400,
 			"message": "无效的居民ID",
 			"data":    nil,
@@ -359,39 +344,26 @@ func (c *ResidentController) DeleteResident() {
 		return
 	}
 
-	// 使用 Container 获取数据库连接
-	db := c.Container.GetDB()
-
-	// 查找居民
-	var resident models.Resident
-	if err := db.First(&resident, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.Context.JSON(http.StatusNotFound, gin.H{
+	// 使用 ResidentService 删除居民
+	residentService := c.Container.GetService("resident").(services.InterfaceResidentService)
+	if err := residentService.DeleteResident(uint(idUint)); err != nil {
+		if err.Error() == "居民不存在" {
+			c.Ctx.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
-				"message": "居民不存在",
+				"message": err.Error(),
 				"data":    nil,
 			})
 			return
 		}
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
-			"message": "获取居民信息失败",
+			"message": "删除居民失败: " + err.Error(),
 			"data":    nil,
 		})
 		return
 	}
 
-	// 删除居民
-	if result := db.Delete(&resident); result.Error != nil {
-		c.Context.JSON(http.StatusInternalServerError, gin.H{
-			"code":    500,
-			"message": "删除居民失败",
-			"data":    nil,
-		})
-		return
-	}
-
-	c.Context.JSON(http.StatusOK, gin.H{
+	c.Ctx.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "居民删除成功",
 		"data":    nil,
@@ -400,10 +372,8 @@ func (c *ResidentController) DeleteResident() {
 
 // HandleResidentFunc 返回一个处理居民请求的Gin处理函数
 func HandleResidentFunc(container *container.ServiceContainer, method string) gin.HandlerFunc {
-	factory := NewControllerFactory(container)
-
 	return func(ctx *gin.Context) {
-		controller := factory.NewResidentController(ctx)
+		controller := NewResidentController(ctx, container)
 
 		switch method {
 		case "getResidents":

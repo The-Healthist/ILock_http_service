@@ -19,21 +19,26 @@ type ServiceContainer struct {
 	config *config.Config
 	redis  *redis.Client
 
-	// 服务
-	jwtService   *services.JWTService
-	rtcService   *services.RTCService
-	redisService *services.RedisService
+	// 基础服务
+	jwtService services.InterfaceJWTService
 
-	// 新增腾讯云TRTC服务
-	tencentRTCService *services.TencentRTCService
+	// RTC相关服务
+	rtcService        services.InterfaceRTCService
+	tencentRTCService services.InterfaceTencentRTCService
 
-	// 其他服务
-	deviceService     *services.DeviceService
-	adminService      *services.AdminService
-	residentService   *services.ResidentService
-	staffService      *services.StaffService
-	callRecordService *services.CallRecordService
-	emergencyService  *services.EmergencyService
+	// 数据存储服务
+	redisService services.InterfaceRedisService
+
+	// MQTT通话服务
+	mqttCallService services.InterfaceMQTTCallService
+
+	// 业务服务
+	deviceService     services.InterfaceDeviceService
+	adminService      services.InterfaceAdminService
+	residentService   services.InterfaceResidentService
+	staffService      services.InterfaceStaffService
+	callRecordService services.InterfaceCallRecordService
+	emergencyService  services.InterfaceEmergencyService
 
 	mu sync.RWMutex
 }
@@ -72,15 +77,25 @@ func (c *ServiceContainer) initializeServices() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// 初始化服务
-	c.jwtService = services.NewJWTService(c.config)
-	c.rtcService = services.NewRTCService(c.config)
-	c.redisService = services.NewRedisService(c.config)
+	// 初始化基础服务
+	c.jwtService = services.NewJWTService(c.config, c.db)
 
-	// 初始化腾讯云TRTC服务
+	// 初始化RTC服务
+	c.rtcService = services.NewRTCService(c.config)
 	c.tencentRTCService = services.NewTencentRTCService(c.config)
 
-	// 初始化其他服务
+	// 初始化Redis服务
+	c.redisService = services.NewRedisService(c.config)
+
+	// 初始化MQTT通话服务 - 使用接口类型
+	c.mqttCallService = services.NewMQTTCallService(c.db, c.config, c.tencentRTCService)
+
+	// 连接MQTT服务器
+	if err := c.mqttCallService.Connect(); err != nil {
+		log.Printf("MQTT服务连接失败: %v", err)
+	}
+
+	// 初始化业务服务
 	c.deviceService = services.NewDeviceService(c.db, c.config)
 	c.adminService = services.NewAdminService(c.db, c.config)
 	c.residentService = services.NewResidentService(c.db, c.config)
@@ -89,84 +104,7 @@ func (c *ServiceContainer) initializeServices() {
 	c.emergencyService = services.NewEmergencyService(c.db, c.config)
 }
 
-// GetJWTService 获取JWT服务
-func (c *ServiceContainer) GetJWTService() *services.JWTService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.jwtService
-}
-
-// GetRTCService 获取RTC服务
-func (c *ServiceContainer) GetRTCService() *services.RTCService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.rtcService
-}
-
-// GetTencentRTCService 获取腾讯云RTC服务
-func (c *ServiceContainer) GetTencentRTCService() *services.TencentRTCService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.tencentRTCService
-}
-
-// GetRedisService 获取Redis服务
-func (c *ServiceContainer) GetRedisService() *services.RedisService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.redisService
-}
-
-// GetDeviceService 获取设备服务
-func (c *ServiceContainer) GetDeviceService() *services.DeviceService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.deviceService
-}
-
-// GetAdminService 获取管理员服务
-func (c *ServiceContainer) GetAdminService() *services.AdminService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.adminService
-}
-
-// GetResidentService 获取居民服务
-func (c *ServiceContainer) GetResidentService() *services.ResidentService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.residentService
-}
-
-// GetStaffService 获取物业人员服务
-func (c *ServiceContainer) GetStaffService() *services.StaffService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.staffService
-}
-
-// GetCallRecordService 获取通话记录服务
-func (c *ServiceContainer) GetCallRecordService() *services.CallRecordService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.callRecordService
-}
-
-// GetEmergencyService 获取紧急事件服务
-func (c *ServiceContainer) GetEmergencyService() *services.EmergencyService {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.emergencyService
-}
-
-// GetDB 获取数据库连接
-func (c *ServiceContainer) GetDB() *gorm.DB {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.db
-}
-
-// GetService 基于服务名称获取服务
+// GetService 获取指定名称的服务
 func (c *ServiceContainer) GetService(name string) interface{} {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -178,6 +116,8 @@ func (c *ServiceContainer) GetService(name string) interface{} {
 		return c.rtcService
 	case "tencent_rtc":
 		return c.tencentRTCService
+	case "mqtt_call":
+		return c.mqttCallService
 	case "redis":
 		return c.redisService
 	case "device":
@@ -195,4 +135,11 @@ func (c *ServiceContainer) GetService(name string) interface{} {
 	default:
 		return nil
 	}
+}
+
+// GetDB 获取数据库连接
+func (c *ServiceContainer) GetDB() *gorm.DB {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.db
 }

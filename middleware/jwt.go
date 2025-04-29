@@ -10,11 +10,11 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-var jwtService *services.JWTService
+var jwtService services.InterfaceJWTService
 
 // InitAuthMiddleware 初始化认证中间件
 func InitAuthMiddleware(cfg *config.Config) {
-	jwtService = services.NewJWTService(cfg)
+	jwtService = services.NewJWTService(cfg, nil)
 }
 
 // extractToken 从授权头中提取token

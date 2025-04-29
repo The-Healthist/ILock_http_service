@@ -27,6 +27,16 @@ type CallFeedback struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+// InterfaceCallRecordService defines the call record service interface
+type InterfaceCallRecordService interface {
+	GetAllCallRecords(page, pageSize int) ([]models.CallRecord, int64, error)
+	GetCallRecordByID(id uint) (*models.CallRecord, error)
+	GetCallRecordsByDeviceID(deviceID uint, page, pageSize int) ([]models.CallRecord, int64, error)
+	GetCallRecordsByResidentID(residentID uint, page, pageSize int) ([]models.CallRecord, int64, error)
+	GetCallStatistics() (*CallStatistics, error)
+	SubmitCallFeedback(feedback *CallFeedback) error
+}
+
 // CallRecordService 提供通话记录相关的服务
 type CallRecordService struct {
 	DB     *gorm.DB
@@ -34,14 +44,14 @@ type CallRecordService struct {
 }
 
 // NewCallRecordService 创建一个新的通话记录服务
-func NewCallRecordService(db *gorm.DB, cfg *config.Config) *CallRecordService {
+func NewCallRecordService(db *gorm.DB, cfg *config.Config) InterfaceCallRecordService {
 	return &CallRecordService{
 		DB:     db,
 		Config: cfg,
 	}
 }
 
-// GetAllCallRecords 获取所有通话记录，支持分页
+// 1 GetAllCallRecords 获取所有通话记录，支持分页
 func (s *CallRecordService) GetAllCallRecords(page, pageSize int) ([]models.CallRecord, int64, error) {
 	var calls []models.CallRecord
 	var total int64
@@ -63,7 +73,7 @@ func (s *CallRecordService) GetAllCallRecords(page, pageSize int) ([]models.Call
 	return calls, total, nil
 }
 
-// GetCallRecordByID 根据ID获取通话记录
+// 2 GetCallRecordByID 根据ID获取通话记录
 func (s *CallRecordService) GetCallRecordByID(id uint) (*models.CallRecord, error) {
 	var call models.CallRecord
 	if err := s.DB.Preload("Device").Preload("Resident").First(&call, id).Error; err != nil {
@@ -75,7 +85,7 @@ func (s *CallRecordService) GetCallRecordByID(id uint) (*models.CallRecord, erro
 	return &call, nil
 }
 
-// GetCallRecordsByDeviceID 获取指定设备的通话记录
+// 3 GetCallRecordsByDeviceID 获取指定设备的通话记录
 func (s *CallRecordService) GetCallRecordsByDeviceID(deviceID uint, page, pageSize int) ([]models.CallRecord, int64, error) {
 	var calls []models.CallRecord
 	var total int64
@@ -107,7 +117,7 @@ func (s *CallRecordService) GetCallRecordsByDeviceID(deviceID uint, page, pageSi
 	return calls, total, nil
 }
 
-// GetCallRecordsByResidentID 获取指定居民的通话记录
+// 4 GetCallRecordsByResidentID 获取指定居民的通话记录
 func (s *CallRecordService) GetCallRecordsByResidentID(residentID uint, page, pageSize int) ([]models.CallRecord, int64, error) {
 	var calls []models.CallRecord
 	var total int64
@@ -139,7 +149,7 @@ func (s *CallRecordService) GetCallRecordsByResidentID(residentID uint, page, pa
 	return calls, total, nil
 }
 
-// GetCallStatistics 获取通话统计信息
+// 5 GetCallStatistics 获取通话统计信息
 func (s *CallRecordService) GetCallStatistics() (*CallStatistics, error) {
 	var statistics CallStatistics
 	var totalDuration int64
@@ -182,7 +192,7 @@ func (s *CallRecordService) GetCallStatistics() (*CallStatistics, error) {
 	return &statistics, nil
 }
 
-// SubmitCallFeedback 提交通话质量反馈
+// 6 SubmitCallFeedback 提交通话质量反馈
 func (s *CallRecordService) SubmitCallFeedback(feedback *CallFeedback) error {
 	// 验证通话记录是否存在
 	var call models.CallRecord
