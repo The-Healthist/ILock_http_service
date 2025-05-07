@@ -4,6 +4,7 @@ import (
 	"errors"
 	"ilock-http-service/config"
 	"ilock-http-service/models"
+	"ilock-http-service/utils"
 
 	"gorm.io/gorm"
 )
@@ -92,7 +93,7 @@ func (s *StaffService) CreateStaff(staff *models.PropertyStaff) error {
 	}
 
 	// 处理密码（在实际应用中应该进行哈希处理）
-	hashedPassword, err := models.HashPassword(staff.Password)
+	hashedPassword, err := utils.HashPassword(staff.Password)
 	if err != nil {
 		return errors.New("密码加密失败")
 	}
@@ -132,7 +133,7 @@ func (s *StaffService) UpdateStaff(id uint, updates map[string]interface{}) (*mo
 
 	// 如果更新密码，需要进行哈希处理
 	if password, ok := updates["password"].(string); ok {
-		hashedPassword, err := models.HashPassword(password)
+		hashedPassword, err := utils.HashPassword(password)
 		if err != nil {
 			return nil, errors.New("密码加密失败")
 		}

@@ -8,10 +8,17 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./.env:/app/.env
+    environment:
+      - ENV_TYPE=SERVER
+      - ALIYUN_ACCESS_KEY=${ALIYUN_ACCESS_KEY}
+      - ALIYUN_RTC_APP_ID=${ALIYUN_RTC_APP_ID}
+      - ALIYUN_RTC_REGION=${ALIYUN_RTC_REGION}
+      - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
     depends_on:
-      - db
-      - redis
-      - mqtt
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - ilock_network
     healthcheck:
@@ -29,6 +36,9 @@ services:
       - "3310:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
     command: --default-authentication-plugin=mysql_native_password
     networks:
       - ilock_network

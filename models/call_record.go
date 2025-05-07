@@ -19,8 +19,8 @@ type CallRecord struct {
 	DeviceID   uint       `json:"device_id"`
 	ResidentID uint       `json:"resident_id"`
 	CallStatus CallStatus `gorm:"type:varchar(20)" json:"call_status"`
-	Timestamp  time.Time  `json:"timestamp"`
-	Duration   int        `json:"duration"` // in seconds
+	Timestamp  time.Time  `json:"timestamp"` // 通话开始时间
+	Duration   int        `json:"duration"`  // 通话时长
 
 	// Relations
 	Device   *Device   `gorm:"foreignKey:DeviceID" json:"device,omitempty"`

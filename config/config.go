@@ -86,25 +86,25 @@ func LoadConfig() *Config {
 		EnvType: envType,
 
 		// Database config - use environment-specific variables if available
-		DBHost:          getEnv(prefix+"DB_HOST", getEnv("DB_HOST", "localhost")),
-		DBUser:          getEnv(prefix+"DB_USER", getEnv("DB_USER", "root")),
-		DBPassword:      getEnv(prefix+"DB_PASSWORD", getEnv("DB_PASSWORD", "1090119your")),
-		DBName:          getEnv(prefix+"DB_NAME", getEnv("DB_NAME", "ilock_db")),
-		DBPort:          getEnv(prefix+"DB_PORT", getEnv("DB_PORT", "3308")),
-		DBMigrationMode: getEnv(prefix+"DB_MIGRATION_MODE", getEnv("DB_MIGRATION_MODE", "alter")),
+		DBHost:          getEnvRequired(prefix + "DB_HOST"),
+		DBUser:          getEnvRequired(prefix + "DB_USER"),
+		DBPassword:      getEnvRequired(prefix + "DB_PASSWORD"),
+		DBName:          getEnvRequired(prefix + "DB_NAME"),
+		DBPort:          getEnvRequired(prefix + "DB_PORT"),
+		DBMigrationMode: getEnv(prefix+"DB_MIGRATION_MODE", "auto"),
 
 		// Server config
 		ServerPort: getEnv(prefix+"SERVER_PORT", getEnv("SERVER_PORT", "8080")),
 
 		// Redis config
-		RedisHost: getEnv(prefix+"REDIS_HOST", getEnv("REDIS_HOST", "localhost")),
+		RedisHost: getEnv(prefix+"REDIS_HOST", getEnv("	REDIS_HOST", "localhost")),
 		RedisPort: getEnv(prefix+"REDIS_PORT", getEnv("REDIS_PORT", "6380")),
 		RedisDB:   getEnvAsInt("REDIS_DB", 0),
 
 		// Aliyun RTC config
-		AliyunAccessKey: getEnv("ALIYUN_ACCESS_KEY", "67613a6a74064cad9859c8f794980cae"),
-		AliyunRTCAppID:  getEnv("ALIYUN_RTC_APP_ID", "md3fh5x4"),
-		AliyunRTCRegion: getEnv("ALIYUN_RTC_REGION", "cn-hangzhou"),
+		AliyunAccessKey: getEnvRequired("ALIYUN_ACCESS_KEY"),
+		AliyunRTCAppID:  getEnvRequired("ALIYUN_RTC_APP_ID"),
+		AliyunRTCRegion: getEnvRequired("ALIYUN_RTC_REGION"),
 
 		// Tencent Cloud RTC config
 		TencentSDKAppID:   tencentAppID,
@@ -123,7 +123,7 @@ func LoadConfig() *Config {
 		JWTSecretKey: getEnv("JWT_SECRET_KEY", "ilock-secret-key-change-in-production"),
 
 		// Admin Config
-		DefaultAdminPassword: getEnv("DEFAULT_ADMIN_PASSWORD", "admin123"),
+		DefaultAdminPassword: getEnvRequired("DEFAULT_ADMIN_PASSWORD"),
 	}
 }
 
@@ -169,4 +169,12 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 		return value
 	}
 	return defaultValue
+}
+
+// 要求必须提供环境变量的辅助函数
+func getEnvRequired(key string) string {
+	if value, exists := os.LookupEnv(key); exists && value != "" {
+		return value
+	}
+	panic(fmt.Sprintf("Required environment variable %s is not set", key))
 }

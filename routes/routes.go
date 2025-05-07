@@ -44,28 +44,26 @@ func SetupRouter(db *gorm.DB, cfg *config.Config) *gin.Engine {
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// 注册路由
-	registerRoutes(r, db, serviceContainer)
+	registerRoutes(r, serviceContainer)
 	return r
 }
 
 // registerRoutes 配置所有API路由
 func registerRoutes(
 	r *gin.Engine,
-	db *gorm.DB,
 	container *container.ServiceContainer,
 ) {
 	// API 路由根路径
 	api := r.Group("/api")
 	// 注册公共路由
-	registerPublicRoutes(api, db, container)
+	registerPublicRoutes(api, container)
 	// 注册需要认证的路由
-	registerAuthenticatedRoutes(api, db, container)
+	registerAuthenticatedRoutes(api, container)
 }
 
 // registerPublicRoutes 注册公共路由
 func registerPublicRoutes(
 	api *gin.RouterGroup,
-	db *gorm.DB,
 	container *container.ServiceContainer,
 ) {
 	// 健康检查
@@ -88,12 +86,19 @@ func registerPublicRoutes(
 	api.POST("/mqtt/device/status", controllers.HandleMQTTCallFunc(container, "publishDeviceStatus"))
 	api.POST("/mqtt/system/message", controllers.HandleMQTTCallFunc(container, "publishSystemMessage"))
 
+	api.POST("/mqtt/initiate", controllers.HandleMQTTCallFunc(container, "initiateCall"))
+	api.POST("/mqtt/caller-action", controllers.HandleMQTTCallFunc(container, "callerAction"))
+	api.POST("/mqtt/callee-action", controllers.HandleMQTTCallFunc(container, "calleeAction"))
+	api.POST("/mqtt/session", controllers.HandleMQTTCallFunc(container, "getCallSession"))
+	api.POST("/mqtt/end-session", controllers.HandleMQTTCallFunc(container, "endCallSession"))
+	api.POST("/mqtt/device/status", controllers.HandleMQTTCallFunc(container, "publishDeviceStatus"))
+	api.POST("/mqtt/system/message", controllers.HandleMQTTCallFunc(container, "publishSystemMessage"))
+
 }
 
 // registerAuthenticatedRoutes 注册需要认证的路由
 func registerAuthenticatedRoutes(
 	api *gin.RouterGroup,
-	db *gorm.DB,
 	container *container.ServiceContainer,
 ) {
 	// 系统管理员路由组

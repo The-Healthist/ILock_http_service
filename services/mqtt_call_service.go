@@ -4,58 +4,43 @@ import (
 	"encoding/json"
 	"fmt"
 	"ilock-http-service/config"
+	"ilock-http-service/models"
 	"log"
 	"strings"
 	"sync"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-// InterfaceMQTTCallService defines the MQTT call service interface
+// InterfaceMQTTCallService 定义MQTT通话服务接口
 type InterfaceMQTTCallService interface {
 	Connect() error
 	Disconnect()
-	InitiateCall(deviceID string, userID string) (string, error)
-	HandleCallerAction(callID string, action string, reason string) error
-	HandleCalleeAction(callID string, action string, reason string) error
-	GetOrCreateCallSession(callID string, callerID string, calleeID string) *CallSession
-	GetCallSession(callID string) *CallSession
-	EndCallSession(callID string)
-	SendIncomingCallNotification(userID string, notification *CallIncomingNotification) error
-	SendCallerControlMessage(deviceID string, control *CallControl) error
-	SendCalleeControlMessage(userID string, control *CallControl) error
+	InitiateCall(deviceID, residentID string) (string, error)
+	HandleCallerAction(callID, action, reason string) error
+	HandleCalleeAction(callID, action, reason string) error
+	GetCallSession(callID string) (*models.CallSession, bool)
+	EndCallSession(callID, reason string) error
+	CleanupTimedOutSessions() int
+	SubscribeToTopics() error
 	PublishDeviceStatus(deviceID string, status map[string]interface{}) error
 	PublishSystemMessage(messageType string, message map[string]interface{}) error
 }
 
-// MessageType 定义消息类型
-type MessageType string
-
-const (
-	MessageTypeCallRequest   MessageType = "call_request"
-	MessageTypeCallIncoming  MessageType = "call_incoming"
-	MessageTypeCallControl   MessageType = "call_control"
-	MessageTypeDeviceControl MessageType = "device_control"
-	MessageTypeDeviceStatus  MessageType = "device_status"
-	MessageTypeSystemMessage MessageType = "system_message"
-)
-
-// CallAction 定义通话控制动作
-type CallAction string
-
-const (
-	// Caller 接收的动作
-	ActionRinging  CallAction = "ringing"  // 正在呼叫
-	ActionRejected CallAction = "rejected" // 被拒绝
-	ActionHangup   CallAction = "hangup"   // 挂断
-	ActionTimeout  CallAction = "timeout"  // 超时
-	ActionError    CallAction = "error"    // 错误
-
-	// Callee 接收的动作
-	ActionCancelled CallAction = "cancelled" // 呼叫取消
-)
+// MQTTCallService 整合MQTT和通话服务的实现
+type MQTTCallService struct {
+	DB              *gorm.DB
+	Config          *config.Config
+	RTCService      InterfaceTencentRTCService
+	Client          mqtt.Client
+	IsConnected     bool
+	CallManager     *models.CallManager
+	TopicHandlers   map[string]mqtt.MessageHandler
+	CallRecordMutex sync.Mutex // 用于保护通话记录创建
+}
 
 // 主题常量
 const (
@@ -78,108 +63,78 @@ const (
 	TopicSystemMessageFormat = "system/%s" // %s: message_type
 )
 
-// MQTTCallService 整合MQTT和通话服务
-type MQTTCallService struct {
-	DB           *gorm.DB
-	Config       *config.Config
-	RTCService   InterfaceTencentRTCService
-	Client       mqtt.Client
-	IsConnected  bool
-	ActiveCalls  map[string]*CallSession
-	CallHandlers map[string]func(payload []byte)
-	mu           sync.RWMutex // 用于保护 CallHandlers 和 ActiveCalls
-}
-
-// CallSession 表示一个进行中的通话会话
-type CallSession struct {
-	CallID         string
-	CallerID       string
-	CalleeID       string
-	RoomID         string
-	CallState      string // "requesting", "ringing", "connected", "ended"
-	StartTimestamp int64
-	EndTimestamp   int64
-}
-
 // 消息结构体定义
 type (
 	// MQTTMessage MQTT消息基础结构
 	MQTTMessage struct {
-		Type      MessageType    `json:"type"`
+		Type      string         `json:"type"`
 		Timestamp int64          `json:"timestamp"`
 		Payload   map[string]any `json:"payload"`
 	}
 
 	// CallRequest 呼叫请求结构
 	CallRequest struct {
-		CallID       string `json:"call_id"`        // 本次呼叫的唯一ID
-		CallerID     string `json:"caller_id"`      // 呼叫方设备ID
-		TargetUserID string `json:"target_user_id"` // 目标用户ID
-		Timestamp    int64  `json:"timestamp"`      // 发起呼叫的Unix毫秒时间戳
+		DeviceID     string `json:"device_device_id"`   // 呼叫方设备ID
+		TargetUserID string `json:"target_resident_id"` // 目标用户ID
+		Timestamp    int64  `json:"timestamp"`          // 发起呼叫的Unix毫秒时间戳
 	}
 
-	// CallIncomingNotification 来电通知结构
-	CallIncomingNotification struct {
-		CallID     string     `json:"call_id"`     // 对应呼叫请求的ID
-		CallerID   string     `json:"caller_id"`   // 呼叫方设备ID
-		CallerInfo CallerInfo `json:"caller_info"` // 呼叫方信息
-		Timestamp  int64      `json:"timestamp"`   // 发送通知的Unix毫秒时间戳
-		RoomInfo   RoomInfo   `json:"room_info"`   // TRTC房间信息
+	// CallResponse 呼叫响应结构
+	CallResponse struct {
+		CallID       string   `json:"call_id"`          // 本次呼叫的唯一ID
+		DeviceID     string   `json:"device_device_id"` // 呼叫方设备ID
+		TargetUserID string   `json:"target_resident_id"`
+		Timestamp    int64    `json:"timestamp"`
+		TRTCInfo     TRTCInfo `json:"tencen_rtc"` // 腾讯云TRTC信息
+		CallInfo     CallInfo `json:"call_info"`  // 通话信息
 	}
 
-	// CallerInfo 呼叫方信息
-	CallerInfo struct {
-		Name string `json:"name"` // 设备名称或用户昵称
+	// TRTCInfo 腾讯云RTC信息
+	TRTCInfo struct {
+		RoomIDType string `json:"room_id_type"`
+		RoomID     string `json:"room_id"`
+		SDKAppID   int    `json:"sdk_app_id"`
+		UserID     string `json:"user_id"`
+		UserSig    string `json:"user_sig"`
 	}
 
-	// RoomInfo TRTC房间信息
-	RoomInfo struct {
-		RoomID   string `json:"room_id"`    // TRTC房间号
-		SDKAppID int    `json:"sdk_app_id"` // TRTC应用ID
-		UserID   string `json:"user_id"`    // 用户ID
-		UserSig  string `json:"user_sig"`   // TRTC签名
+	// CallInfo 通话控制信息
+	CallInfo struct {
+		Action    string `json:"action"`
+		CallID    string `json:"call_id"`
+		Timestamp int64  `json:"timestamp"`
+		Reason    string `json:"reason,omitempty"`
 	}
 
-	// CallControl 通话控制消息
-	CallControl struct {
-		Action    CallAction `json:"action"`           // 控制动作类型
-		CallID    string     `json:"call_id"`          // 对应呼叫请求的ID
-		Timestamp int64      `json:"timestamp"`        // 发送指令的Unix毫秒时间戳
-		Reason    string     `json:"reason,omitempty"` // 可选，提供额外信息
-	}
-
-	// DeviceStatus 设备状态结构
-	DeviceStatus struct {
-		DeviceID   string                 `json:"device_id"`
-		Online     bool                   `json:"online"`
-		Battery    int                    `json:"battery"`
-		LastUpdate int64                  `json:"last_update"`
-		Properties map[string]interface{} `json:"properties"`
-	}
-
-	// SystemMessage 系统消息结构
-	SystemMessage struct {
-		Type      string                 `json:"type"`
-		Level     string                 `json:"level"` // info, warning, error
-		Message   string                 `json:"message"`
-		Timestamp int64                  `json:"timestamp"`
-		Data      map[string]interface{} `json:"data,omitempty"`
+	// IncomingCallNotification 来电通知
+	IncomingCallNotification struct {
+		CallID       string   `json:"call_id"`
+		DeviceID     string   `json:"device_device_id"`
+		TargetUserID string   `json:"target_resident_id"`
+		Timestamp    int64    `json:"timestamp"`
+		TRTCInfo     TRTCInfo `json:"tencen_rtc"`
 	}
 )
 
-// NewMQTTCallService 创建一个新的MQTT通话服务
+// NewMQTTCallService 创建一个新的MQTT通话服务实现
 func NewMQTTCallService(db *gorm.DB, cfg *config.Config, rtcService InterfaceTencentRTCService) InterfaceMQTTCallService {
 	service := &MQTTCallService{
-		DB:           db,
-		Config:       cfg,
-		RTCService:   rtcService,
-		IsConnected:  false,
-		ActiveCalls:  make(map[string]*CallSession),
-		CallHandlers: make(map[string]func(payload []byte)),
+		DB:            db,
+		Config:        cfg,
+		RTCService:    rtcService,
+		CallManager:   models.NewCallManager(),
+		TopicHandlers: make(map[string]mqtt.MessageHandler),
+		IsConnected:   false,
 	}
 
-	// 初始化MQTT客户端
+	// 设置MQTT客户端
 	service.setupMQTTClient()
+
+	// 设置主题处理程序
+	service.setupTopicHandlers()
+
+	// 启动会话清理定时任务
+	go service.startSessionCleanupTask()
 
 	return service
 }
@@ -188,7 +143,7 @@ func NewMQTTCallService(db *gorm.DB, cfg *config.Config, rtcService InterfaceTen
 func (s *MQTTCallService) setupMQTTClient() {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(s.Config.MQTTBrokerURL)
-	opts.SetClientID(s.Config.MQTTClientID)
+	opts.SetClientID(fmt.Sprintf("%s-%s", s.Config.MQTTClientID, uuid.New().String()[:8]))
 	opts.SetAutoReconnect(true)
 	opts.SetMaxReconnectInterval(time.Second * 30)
 	opts.SetKeepAlive(time.Second * 60)
@@ -217,7 +172,7 @@ func (s *MQTTCallService) setupMQTTClient() {
 					log.Println("[MQTT] 成功重连")
 					s.IsConnected = true
 					// 重新订阅主题
-					s.subscribeToTopics()
+					s.SubscribeToTopics()
 				}
 			}
 		}()
@@ -229,11 +184,20 @@ func (s *MQTTCallService) setupMQTTClient() {
 		s.IsConnected = true
 
 		// 订阅主题
-		s.subscribeToTopics()
+		s.SubscribeToTopics()
 	})
 
 	// 创建客户端
 	s.Client = mqtt.NewClient(opts)
+}
+
+// setupTopicHandlers 设置主题处理程序
+func (s *MQTTCallService) setupTopicHandlers() {
+	// 呼叫请求处理程序
+	s.TopicHandlers["calls/request/+"] = s.handleCallRequest
+
+	// 设备状态处理程序
+	s.TopicHandlers["devices/+/status"] = s.handleDeviceStatus
 }
 
 // Connect 连接到MQTT服务器
@@ -248,353 +212,430 @@ func (s *MQTTCallService) Connect() error {
 func (s *MQTTCallService) Disconnect() {
 	if s.Client != nil && s.Client.IsConnected() {
 		s.Client.Disconnect(250)
-		s.IsConnected = false
-		log.Println("[MQTT] 已断开连接")
 	}
 }
 
-// 会话管理方法
-func (s *MQTTCallService) GetOrCreateCallSession(callID string, callerID string, calleeID string) *CallSession {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if session, exists := s.ActiveCalls[callID]; exists {
-		return session
-	}
-
-	session := &CallSession{
-		CallID:         callID,
-		CallerID:       callerID,
-		CalleeID:       calleeID,
-		CallState:      "requesting",
-		StartTimestamp: time.Now().UnixMilli(),
-	}
-
-	s.ActiveCalls[callID] = session
-	return session
-}
-
-func (s *MQTTCallService) GetCallSession(callID string) *CallSession {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.ActiveCalls[callID]
-}
-
-func (s *MQTTCallService) EndCallSession(callID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if session, exists := s.ActiveCalls[callID]; exists {
-		session.CallState = "ended"
-		session.EndTimestamp = time.Now().UnixMilli()
-
-		// 保存通话记录到数据库
-		duration := session.EndTimestamp - session.StartTimestamp
-		callRecord := struct {
-			CallID     string
-			CallerID   string
-			CalleeID   string
-			StartTime  time.Time
-			EndTime    time.Time
-			Duration   int64
-			CallResult string
-		}{
-			CallID:     session.CallID,
-			CallerID:   session.CallerID,
-			CalleeID:   session.CalleeID,
-			StartTime:  time.UnixMilli(session.StartTimestamp),
-			EndTime:    time.UnixMilli(session.EndTimestamp),
-			Duration:   duration / 1000, // 转换为秒
-			CallResult: session.CallState,
+// SubscribeToTopics 订阅相关主题
+func (s *MQTTCallService) SubscribeToTopics() error {
+	for topic, handler := range s.TopicHandlers {
+		if token := s.Client.Subscribe(topic, 1, handler); token.Wait() && token.Error() != nil {
+			return fmt.Errorf("订阅主题失败 [%s]: %v", topic, token.Error())
 		}
-
-		s.DB.Create(&callRecord)
-
-		// 从活动通话中移除
-		delete(s.ActiveCalls, callID)
+		log.Printf("[MQTT] 已订阅主题: %s", topic)
 	}
+	return nil
 }
 
-// 通话控制方法
-func (s *MQTTCallService) InitiateCall(deviceID string, userID string) (string, error) {
-	// 生成唯一呼叫ID
-	callID := fmt.Sprintf("call_%s_%s_%d", deviceID, userID, time.Now().UnixMilli())
+// InitiateCall 发起通话
+func (s *MQTTCallService) InitiateCall(deviceID, residentID string) (string, error) {
+	// 生成唯一的通话ID
+	callID := uuid.New().String()
 
-	// 创建会话
-	session := s.GetOrCreateCallSession(callID, deviceID, userID)
-
-	// 创建房间ID
-	roomID, err := s.RTCService.CreateVideoCall(deviceID, userID)
+	// 创建TRTC房间并生成签名
+	rtcRoomID, err := s.RTCService.CreateVideoCall(deviceID, residentID)
 	if err != nil {
-		return "", fmt.Errorf("创建视频通话失败: %v", err)
+		return "", fmt.Errorf("创建TRTC房间失败: %v", err)
 	}
 
-	session.RoomID = roomID
-
-	// 为被呼叫方生成UserSig
-	userSigInfo, err := s.RTCService.GetUserSig(userID)
+	// 为住户生成UserSig
+	tokenInfo, err := s.RTCService.GetUserSig(residentID)
 	if err != nil {
-		return "", fmt.Errorf("为被呼叫方生成UserSig失败: %v", err)
+		return "", fmt.Errorf("生成UserSig失败: %v", err)
 	}
 
-	// 发送来电通知
-	notification := &CallIncomingNotification{
-		CallID:    callID,
-		CallerID:  deviceID,
-		Timestamp: time.Now().UnixMilli(),
-		CallerInfo: CallerInfo{
-			Name: "门口设备", // 实际项目中从数据库获取设备名称
+	// 创建TRTC信息
+	trtcInfo := models.TRTCInfo{
+		RoomID:     rtcRoomID,
+		RoomIDType: "string",
+		SDKAppID:   tokenInfo.SDKAppID,
+		UserID:     tokenInfo.UserID,
+		UserSig:    tokenInfo.UserSig,
+	}
+
+	// 创建通话会话
+	_, err = s.CallManager.CreateSession(callID, deviceID, residentID, trtcInfo)
+	if err != nil {
+		return "", fmt.Errorf("创建通话会话失败: %v", err)
+	}
+
+	// 发送呼入通知给住户
+	incomingNotification := IncomingCallNotification{
+		CallID:       callID,
+		DeviceID:     deviceID,
+		TargetUserID: residentID,
+		Timestamp:    time.Now().UnixMilli(),
+		TRTCInfo: TRTCInfo{
+			RoomIDType: trtcInfo.RoomIDType,
+			RoomID:     trtcInfo.RoomID,
+			SDKAppID:   trtcInfo.SDKAppID,
+			UserID:     trtcInfo.UserID,
+			UserSig:    trtcInfo.UserSig,
 		},
-		RoomInfo: RoomInfo{
-			RoomID:   roomID,
-			SDKAppID: userSigInfo.SDKAppID,
-			UserID:   userID,
-			UserSig:  userSigInfo.UserSig,
-		},
 	}
 
-	if err := s.SendIncomingCallNotification(userID, notification); err != nil {
-		return "", fmt.Errorf("发送来电通知失败: %v", err)
+	// 发布到住户的呼入通知主题
+	incomingTopic := fmt.Sprintf(TopicIncomingCallFormat, residentID)
+	if err := s.publishMessage(incomingTopic, incomingNotification); err != nil {
+		// 发送失败，结束会话
+		s.CallManager.EndSession(callID, "发送通知失败")
+		return "", fmt.Errorf("发送呼入通知失败: %v", err)
 	}
 
-	// 发送响铃状态给呼叫方
-	controlMsg := &CallControl{
-		Action:    ActionRinging,
+	// 更新会话状态为振铃中
+	s.CallManager.UpdateSessionStatus(callID, "ringing")
+
+	// 发送振铃控制消息给设备
+	callerControl := CallInfo{
+		Action:    "ringing",
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 	}
-
-	if err := s.SendCallerControlMessage(deviceID, controlMsg); err != nil {
-		return "", fmt.Errorf("发送响铃状态失败: %v", err)
+	callerTopic := fmt.Sprintf(TopicCallerControlFormat, deviceID)
+	if err := s.publishMessage(callerTopic, callerControl); err != nil {
+		log.Printf("[MQTT] 发送振铃控制消息失败: %v", err)
 	}
+
+	// 创建通话记录
+	s.createCallRecord(callID, deviceID, residentID, "ringing")
 
 	return callID, nil
 }
 
-func (s *MQTTCallService) HandleCallerAction(callID string, action string, reason string) error {
-	session := s.GetCallSession(callID)
-	if session == nil {
-		return fmt.Errorf("通话不存在")
+// HandleCallerAction 处理呼叫方动作
+func (s *MQTTCallService) HandleCallerAction(callID, action, reason string) error {
+	// 获取会话
+	session, exists := s.CallManager.GetSession(callID)
+	if !exists {
+		return fmt.Errorf("会话不存在: %s", callID)
 	}
 
-	var callAction CallAction
+	// 更新会话状态
+	var newStatus string
 	switch action {
-	case "cancelled":
-		callAction = ActionCancelled
 	case "hangup":
-		callAction = ActionHangup
+		newStatus = "ended"
+	case "cancelled":
+		newStatus = "cancelled"
 	default:
 		return fmt.Errorf("不支持的动作: %s", action)
 	}
 
-	controlMsg := &CallControl{
-		Action:    callAction,
+	// 更新会话状态
+	if err := s.CallManager.UpdateSessionStatus(callID, newStatus); err != nil {
+		return err
+	}
+
+	// 发送控制消息给被呼叫方
+	calleeControl := CallInfo{
+		Action:    action,
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 		Reason:    reason,
 	}
-
-	if err := s.SendCalleeControlMessage(session.CalleeID, controlMsg); err != nil {
-		return fmt.Errorf("发送控制消息失败: %v", err)
+	calleeTopic := fmt.Sprintf(TopicCalleeControlFormat, session.ResidentID)
+	if err := s.publishMessage(calleeTopic, calleeControl); err != nil {
+		log.Printf("[MQTT] 发送控制消息给被呼叫方失败: %v", err)
 	}
 
-	s.EndCallSession(callID)
+	// 如果是结束通话的动作，结束会话
+	if action == "hangup" || action == "cancelled" {
+		if _, err := s.CallManager.EndSession(callID, reason); err != nil {
+			return err
+		}
+
+		// 更新通话记录
+		s.updateCallRecord(callID, "caller_"+action, reason)
+	}
+
 	return nil
 }
 
-func (s *MQTTCallService) HandleCalleeAction(callID string, action string, reason string) error {
-	session := s.GetCallSession(callID)
-	if session == nil {
-		return fmt.Errorf("通话不存在")
+// HandleCalleeAction 处理被呼叫方动作
+func (s *MQTTCallService) HandleCalleeAction(callID, action, reason string) error {
+	// 获取会话
+	session, exists := s.CallManager.GetSession(callID)
+	if !exists {
+		return fmt.Errorf("会话不存在: %s", callID)
 	}
 
-	var callAction CallAction
+	// 更新会话状态
+	var newStatus string
 	switch action {
 	case "rejected":
-		callAction = ActionRejected
+		newStatus = "rejected"
+	case "answered":
+		newStatus = "connected"
 	case "hangup":
-		callAction = ActionHangup
+		newStatus = "ended"
 	case "timeout":
-		callAction = ActionTimeout
+		newStatus = "timeout"
 	default:
 		return fmt.Errorf("不支持的动作: %s", action)
 	}
 
-	controlMsg := &CallControl{
-		Action:    callAction,
+	// 更新会话状态
+	if err := s.CallManager.UpdateSessionStatus(callID, newStatus); err != nil {
+		return err
+	}
+
+	// 发送控制消息给呼叫方
+	callerControl := CallInfo{
+		Action:    action,
+		CallID:    callID,
+		Timestamp: time.Now().UnixMilli(),
+		Reason:    reason,
+	}
+	callerTopic := fmt.Sprintf(TopicCallerControlFormat, session.DeviceID)
+	if err := s.publishMessage(callerTopic, callerControl); err != nil {
+		log.Printf("[MQTT] 发送控制消息给呼叫方失败: %v", err)
+	}
+
+	// 如果是结束通话的动作，结束会话
+	if action == "rejected" || action == "hangup" || action == "timeout" {
+		if _, err := s.CallManager.EndSession(callID, reason); err != nil {
+			return err
+		}
+
+		// 更新通话记录
+		s.updateCallRecord(callID, "callee_"+action, reason)
+	}
+
+	return nil
+}
+
+// GetCallSession 获取指定通话会话
+func (s *MQTTCallService) GetCallSession(callID string) (*models.CallSession, bool) {
+	return s.CallManager.GetSession(callID)
+}
+
+// EndCallSession 结束通话会话
+func (s *MQTTCallService) EndCallSession(callID, reason string) error {
+	session, err := s.CallManager.EndSession(callID, reason)
+	if err != nil {
+		return err
+	}
+
+	// 向双方发送通话结束通知
+	endInfo := CallInfo{
+		Action:    "ended",
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 		Reason:    reason,
 	}
 
-	if err := s.SendCallerControlMessage(session.CallerID, controlMsg); err != nil {
-		return fmt.Errorf("发送控制消息失败: %v", err)
+	// 通知呼叫方
+	callerTopic := fmt.Sprintf(TopicCallerControlFormat, session.DeviceID)
+	if err := s.publishMessage(callerTopic, endInfo); err != nil {
+		log.Printf("[MQTT] 发送结束通知给呼叫方失败: %v", err)
 	}
 
-	s.EndCallSession(callID)
+	// 通知被呼叫方
+	calleeTopic := fmt.Sprintf(TopicCalleeControlFormat, session.ResidentID)
+	if err := s.publishMessage(calleeTopic, endInfo); err != nil {
+		log.Printf("[MQTT] 发送结束通知给被呼叫方失败: %v", err)
+	}
+
+	// 更新通话记录
+	s.updateCallRecord(callID, "system_ended", reason)
+
 	return nil
 }
 
-// MQTT消息处理方法
-func (s *MQTTCallService) subscribeToTopics() {
-	// 订阅呼叫请求主题
-	token := s.Client.Subscribe("calls/request/+", byte(s.Config.MQTTQoS), s.handleCallRequest)
-	if token.Wait() && token.Error() != nil {
-		log.Printf("[MQTT] 订阅呼叫请求主题失败: %v", token.Error())
+// CleanupTimedOutSessions 清理超时会话
+func (s *MQTTCallService) CleanupTimedOutSessions() int {
+	// 呼叫中状态超时时间: 30秒
+	ringTimeout := 30 * time.Second
+	// 通话中状态超时时间: 2小时
+	callTimeout := 2 * time.Hour
+
+	return s.CallManager.CleanupTimedOutSessions(callTimeout, ringTimeout)
+}
+
+// startSessionCleanupTask 启动会话清理定时任务
+func (s *MQTTCallService) startSessionCleanupTask() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			cleanedCount := s.CleanupTimedOutSessions()
+			if cleanedCount > 0 {
+				log.Printf("[MQTT] 清理超时会话: %d 个", cleanedCount)
+			}
+		}
 	}
 }
 
+// handleCallRequest 处理呼叫请求
 func (s *MQTTCallService) handleCallRequest(client mqtt.Client, msg mqtt.Message) {
-	log.Printf("[MQTT] 收到呼叫请求: Topic: %s", msg.Topic())
+	topic := msg.Topic()
+	payload := msg.Payload()
 
+	// 解析呼叫请求
 	var request CallRequest
-	if err := json.Unmarshal(msg.Payload(), &request); err != nil {
+	if err := json.Unmarshal(payload, &request); err != nil {
 		log.Printf("[MQTT] 解析呼叫请求失败: %v", err)
 		return
 	}
 
-	s.mu.RLock()
-	handler, exists := s.CallHandlers[request.CallID]
-	s.mu.RUnlock()
-
-	if exists {
-		handler(msg.Payload())
-	} else {
-		s.processCallRequest(&request)
-	}
-}
-
-func (s *MQTTCallService) processCallRequest(request *CallRequest) {
-	log.Printf("[MQTT] 处理呼叫请求: CallID=%s, CallerID=%s, TargetUserID=%s",
-		request.CallID, request.CallerID, request.TargetUserID)
-
-	// 验证请求
-	if request.CallID == "" || request.CallerID == "" || request.TargetUserID == "" {
-		log.Printf("[MQTT] 无效的呼叫请求参数")
-		s.sendErrorToDevice(request.CallerID, request.CallID, "无效的请求参数")
+	// 提取设备ID
+	deviceID := extractDeviceIDFromTopic(topic)
+	if deviceID == "" {
+		log.Printf("[MQTT] 无法从主题提取设备ID: %s", topic)
 		return
 	}
 
-	// 创建会话并处理呼叫
-	if _, err := s.InitiateCall(request.CallerID, request.TargetUserID); err != nil {
-		log.Printf("[MQTT] 处理呼叫请求失败: %v", err)
-		s.sendErrorToDevice(request.CallerID, request.CallID, err.Error())
+	// 验证设备ID
+	if deviceID != request.DeviceID {
+		log.Printf("[MQTT] 设备ID不匹配: 主题=%s, 请求=%s", deviceID, request.DeviceID)
+		return
+	}
+
+	// 发起通话
+	callID, err := s.InitiateCall(request.DeviceID, request.TargetUserID)
+	if err != nil {
+		log.Printf("[MQTT] 发起通话失败: %v", err)
+		// 发送错误响应给设备
+		s.sendErrorToDevice(request.DeviceID, "", fmt.Sprintf("发起通话失败: %v", err))
+		return
+	}
+
+	// 获取会话信息
+	session, exists := s.CallManager.GetSession(callID)
+	if !exists {
+		log.Printf("[MQTT] 通话会话不存在: %s", callID)
+		return
+	}
+
+	// 构建响应
+	response := CallResponse{
+		CallID:       callID,
+		DeviceID:     request.DeviceID,
+		TargetUserID: request.TargetUserID,
+		Timestamp:    time.Now().UnixMilli(),
+		TRTCInfo: TRTCInfo{
+			RoomIDType: session.TRTCInfo.RoomIDType,
+			RoomID:     session.TRTCInfo.RoomID,
+			SDKAppID:   session.TRTCInfo.SDKAppID,
+			UserID:     session.TRTCInfo.UserID,
+			UserSig:    session.TRTCInfo.UserSig,
+		},
+		CallInfo: CallInfo{
+			Action:    "ringing",
+			CallID:    callID,
+			Timestamp: time.Now().UnixMilli(),
+		},
+	}
+
+	// 发送响应
+	responseTopic := fmt.Sprintf(TopicCallerControlFormat, request.DeviceID)
+	if err := s.publishMessage(responseTopic, response); err != nil {
+		log.Printf("[MQTT] 发送呼叫响应失败: %v", err)
 	}
 }
 
-// MQTT消息发送方法
-func (s *MQTTCallService) SendIncomingCallNotification(userID string, notification *CallIncomingNotification) error {
-	topic := fmt.Sprintf(TopicIncomingCallFormat, userID)
-	return s.publishMessage(topic, notification)
+// handleDeviceStatus 处理设备状态消息
+func (s *MQTTCallService) handleDeviceStatus(client mqtt.Client, msg mqtt.Message) {
+	topic := msg.Topic()
+	payload := msg.Payload()
+
+	// 提取设备ID
+	deviceID := extractDeviceIDFromTopic(topic)
+	if deviceID == "" {
+		log.Printf("[MQTT] 无法从主题提取设备ID: %s", topic)
+		return
+	}
+
+	// 解析设备状态
+	var status map[string]interface{}
+	if err := json.Unmarshal(payload, &status); err != nil {
+		log.Printf("[MQTT] 解析设备状态失败: %v", err)
+		return
+	}
+
+	// 更新设备状态（在实际应用中，你可能需要将状态存储到数据库）
+	log.Printf("[MQTT] 设备状态更新: ID=%s, 状态=%v", deviceID, status)
 }
 
-func (s *MQTTCallService) SendCallerControlMessage(deviceID string, control *CallControl) error {
-	topic := fmt.Sprintf(TopicCallerControlFormat, deviceID)
-	return s.publishMessage(topic, control)
-}
-
-func (s *MQTTCallService) SendCalleeControlMessage(userID string, control *CallControl) error {
-	topic := fmt.Sprintf(TopicCalleeControlFormat, userID)
-	return s.publishMessage(topic, control)
-}
-
+// publishMessage 发布消息到指定主题
 func (s *MQTTCallService) publishMessage(topic string, payload interface{}) error {
-	data, err := json.Marshal(payload)
+	// 序列化消息
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("序列化消息失败: %v", err)
 	}
 
-	token := s.Client.Publish(topic, byte(s.Config.MQTTQoS), s.Config.MQTTRetained, data)
-	if token.Wait() && token.Error() != nil {
+	// 发布消息
+	if token := s.Client.Publish(topic, 1, false, jsonData); token.Wait() && token.Error() != nil {
 		return fmt.Errorf("发布消息失败: %v", token.Error())
 	}
 
+	log.Printf("[MQTT] 已发布消息到主题: %s", topic)
 	return nil
 }
 
-func (s *MQTTCallService) sendErrorToDevice(deviceID string, callID string, reason string) {
-	errorMsg := &CallControl{
-		Action:    ActionError,
+// sendErrorToDevice 发送错误消息给设备
+func (s *MQTTCallService) sendErrorToDevice(deviceID, callID, reason string) {
+	errorInfo := CallInfo{
+		Action:    "error",
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 		Reason:    reason,
 	}
 
-	if err := s.SendCallerControlMessage(deviceID, errorMsg); err != nil {
-		log.Printf("[MQTT] 发送错误消息失败: %v", err)
+	topic := fmt.Sprintf(TopicCallerControlFormat, deviceID)
+	if err := s.publishMessage(topic, errorInfo); err != nil {
+		log.Printf("[MQTT] 发送错误消息给设备失败: %v", err)
 	}
 }
 
-// 设备状态和系统消息方法
+// PublishDeviceStatus 发布设备状态
 func (s *MQTTCallService) PublishDeviceStatus(deviceID string, status map[string]interface{}) error {
 	topic := fmt.Sprintf(TopicDeviceStatusFormat, deviceID)
 	return s.publishMessage(topic, status)
 }
 
+// PublishSystemMessage 发布系统消息
 func (s *MQTTCallService) PublishSystemMessage(messageType string, message map[string]interface{}) error {
 	topic := fmt.Sprintf(TopicSystemMessageFormat, messageType)
 	return s.publishMessage(topic, message)
 }
 
-func (s *MQTTCallService) handleDeviceStatus(client mqtt.Client, msg mqtt.Message) {
-	log.Printf("[MQTT] 收到设备状态: Topic: %s", msg.Topic())
+// createCallRecord 创建通话记录
+func (s *MQTTCallService) createCallRecord(callID, deviceID, residentID, status string) {
+	s.CallRecordMutex.Lock()
+	defer s.CallRecordMutex.Unlock()
 
-	deviceID := extractDeviceIDFromTopic(msg.Topic())
-	if deviceID == "" {
-		log.Printf("[MQTT] 无法从主题中提取设备ID: %s", msg.Topic())
-		return
-	}
-
-	var status DeviceStatus
-	if err := json.Unmarshal(msg.Payload(), &status); err != nil {
-		log.Printf("[MQTT] 解析设备状态失败: %v", err)
-		return
-	}
-
-	status.DeviceID = deviceID
-	status.LastUpdate = time.Now().UnixMilli()
-
-	log.Printf("[MQTT] 设备状态更新: DeviceID=%s, Online=%v, Battery=%d%%",
-		status.DeviceID, status.Online, status.Battery)
+	// 在实际实现中，这里应该将通话记录保存到数据库
+	// 这里只是示例，实际使用时需要替换成真实的数据库操作
+	log.Printf("[MQTT] 创建通话记录: ID=%s, 设备=%s, 住户=%s, 状态=%s",
+		callID, deviceID, residentID, status)
 }
 
-func (s *MQTTCallService) handleSystemMessage(client mqtt.Client, msg mqtt.Message) {
-	log.Printf("[MQTT] 收到系统消息: Topic: %s", msg.Topic())
+// updateCallRecord 更新通话记录
+func (s *MQTTCallService) updateCallRecord(callID, status, reason string) {
+	s.CallRecordMutex.Lock()
+	defer s.CallRecordMutex.Unlock()
 
-	var sysMsg SystemMessage
-	if err := json.Unmarshal(msg.Payload(), &sysMsg); err != nil {
-		log.Printf("[MQTT] 解析系统消息失败: %v", err)
-		return
-	}
-
-	switch sysMsg.Level {
-	case "error":
-		log.Printf("[MQTT] 系统错误: %s - %s", sysMsg.Type, sysMsg.Message)
-	case "warning":
-		log.Printf("[MQTT] 系统警告: %s - %s", sysMsg.Type, sysMsg.Message)
-	default:
-		log.Printf("[MQTT] 系统信息: %s - %s", sysMsg.Type, sysMsg.Message)
-	}
-
-	switch sysMsg.Type {
-	case "device_offline":
-		if deviceID, ok := sysMsg.Data["device_id"].(string); ok {
-			log.Printf("[MQTT] 设备离线: %s", deviceID)
-		}
-	case "device_online":
-		if deviceID, ok := sysMsg.Data["device_id"].(string); ok {
-			log.Printf("[MQTT] 设备上线: %s", deviceID)
-		}
-	case "system_maintenance":
-		log.Printf("[MQTT] 系统维护通知: %s", sysMsg.Message)
-	}
+	// 在实际实现中，这里应该更新数据库中的通话记录
+	// 这里只是示例，实际使用时需要替换成真实的数据库操作
+	log.Printf("[MQTT] 更新通话记录: ID=%s, 状态=%s, 原因=%s", callID, status, reason)
 }
 
-// 工具方法
+// extractDeviceIDFromTopic 从主题中提取设备ID
 func extractDeviceIDFromTopic(topic string) string {
-	parts := strings.Split(topic, "/")
-	if len(parts) != 3 || parts[0] != "devices" || parts[2] != "status" {
-		return ""
+	// 针对不同类型的主题进行解析
+	if strings.HasPrefix(topic, "calls/request/") {
+		parts := strings.Split(topic, "/")
+		if len(parts) >= 3 {
+			return parts[2]
+		}
+	} else if strings.HasPrefix(topic, "devices/") {
+		parts := strings.Split(topic, "/")
+		if len(parts) >= 3 {
+			return parts[1]
+		}
 	}
-	return parts[1]
+	return ""
 }
