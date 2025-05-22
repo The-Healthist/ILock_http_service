@@ -79,21 +79,18 @@ func registerPublicRoutes(
 	// 腾讯云RTC路由
 	api.POST("/trtc/usersig", controllers.HandleTencentRTCFunc(container, "getUserSig"))
 	api.POST("/trtc/call", controllers.HandleTencentRTCFunc(container, "startCall"))
-	// MQTT通话和消息路由组
-	api.POST("/mqtt/initiate", controllers.HandleMQTTCallFunc(container, "initiateCall"))
-	api.POST("/mqtt/caller-action", controllers.HandleMQTTCallFunc(container, "callerAction"))
-	api.POST("/mqtt/callee-action", controllers.HandleMQTTCallFunc(container, "calleeAction"))
-	api.POST("/mqtt/device/status", controllers.HandleMQTTCallFunc(container, "publishDeviceStatus"))
-	api.POST("/mqtt/system/message", controllers.HandleMQTTCallFunc(container, "publishSystemMessage"))
-
-	api.POST("/mqtt/initiate", controllers.HandleMQTTCallFunc(container, "initiateCall"))
-	api.POST("/mqtt/caller-action", controllers.HandleMQTTCallFunc(container, "callerAction"))
-	api.POST("/mqtt/callee-action", controllers.HandleMQTTCallFunc(container, "calleeAction"))
-	api.POST("/mqtt/session", controllers.HandleMQTTCallFunc(container, "getCallSession"))
+	
+	// MQTT通话和消息路由组 - 更新以匹配API文档
+	api.POST("/mqtt/call", controllers.HandleMQTTCallFunc(container, "initiateCall"))                // 修改路径从initiate到call
+	api.POST("/mqtt/controller/device", controllers.HandleMQTTCallFunc(container, "callerAction"))   // 修改路径从caller-action到controller/device
+	api.POST("/mqtt/controller/resident", controllers.HandleMQTTCallFunc(container, "calleeAction")) // 修改路径从callee-action到controller/resident
+	api.GET("/mqtt/session", controllers.HandleMQTTCallFunc(container, "getCallSession"))           // 修改为GET请求
 	api.POST("/mqtt/end-session", controllers.HandleMQTTCallFunc(container, "endCallSession"))
 	api.POST("/mqtt/device/status", controllers.HandleMQTTCallFunc(container, "publishDeviceStatus"))
 	api.POST("/mqtt/system/message", controllers.HandleMQTTCallFunc(container, "publishSystemMessage"))
-
+	
+	// 设备健康检测路由
+	api.POST("/device/status", controllers.HandleDeviceFunc(container, "checkDeviceHealth"))
 }
 
 // registerAuthenticatedRoutes 注册需要认证的路由
@@ -141,6 +138,7 @@ func registerAuthenticatedRoutes(
 	adminGroup.GET("/call_records/device/:deviceId", controllers.HandleCallRecordFunc(container, "getDeviceCallRecords"))
 	adminGroup.GET("/call_records/resident/:residentId", controllers.HandleCallRecordFunc(container, "getResidentCallRecords"))
 	adminGroup.POST("/call_records/:id/feedback", controllers.HandleCallRecordFunc(container, "submitCallFeedback"))
+	adminGroup.GET("/call_records/session", controllers.HandleCallRecordFunc(container, "getCallSession"))
 
 	// 紧急情况路由
 	emergencyRoutes := api.Group("/emergency")

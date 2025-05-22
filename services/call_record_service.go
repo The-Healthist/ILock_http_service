@@ -35,6 +35,7 @@ type InterfaceCallRecordService interface {
 	GetCallRecordsByResidentID(residentID uint, page, pageSize int) ([]models.CallRecord, int64, error)
 	GetCallStatistics() (*CallStatistics, error)
 	SubmitCallFeedback(feedback *CallFeedback) error
+	GetCallRecordByCallID(callID string) (*models.CallRecord, error)
 }
 
 // CallRecordService 提供通话记录相关的服务
@@ -216,4 +217,21 @@ func (s *CallRecordService) SubmitCallFeedback(feedback *CallFeedback) error {
 	// 但由于模型中没有提供反馈表，这里仅做示例
 
 	return nil
+}
+
+// GetCallRecordByCallID 根据通话ID获取通话记录
+func (s *CallRecordService) GetCallRecordByCallID(callID string) (*models.CallRecord, error) {
+	var call models.CallRecord
+	
+	// 查询字段名可能需要根据实际的数据表结构调整
+	if err := s.DB.Preload("Device").Preload("Resident").
+		Where("call_id = ?", callID).
+		First(&call).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("通话记录不存在")
+		}
+		return nil, err
+	}
+	
+	return &call, nil
 }

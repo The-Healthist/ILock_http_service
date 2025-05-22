@@ -20,6 +20,7 @@ type InterfaceMQTTCallService interface {
 	Connect() error
 	Disconnect()
 	InitiateCall(deviceID, residentID string) (string, error)
+	InitiateCallToAll(deviceID string) (string, []string, error)
 	HandleCallerAction(callID, action, reason string) error
 	HandleCalleeAction(callID, action, reason string) error
 	GetCallSession(callID string) (*models.CallSession, bool)
@@ -638,4 +639,105 @@ func extractDeviceIDFromTopic(topic string) string {
 		}
 	}
 	return ""
+}
+
+// InitiateCallToAll 向设备关联的所有居民发起通话
+func (s *MQTTCallService) InitiateCallToAll(deviceID string) (string, []string, error) {
+	// 查询设备关联的所有居民
+	var device models.Device
+	if err := s.DB.Preload("Resident").First(&device, deviceID).Error; err != nil {
+		return "", nil, fmt.Errorf("查询设备失败: %v", err)
+	}
+
+	// 如果没有关联的居民，返回错误
+	if len(device.Resident) == 0 {
+		return "", nil, fmt.Errorf("设备未关联任何居民")
+	}
+
+	// 生成唯一的通话ID
+	callID := uuid.New().String()
+	
+	// 收集所有居民ID
+	residentIDs := make([]string, 0, len(device.Resident))
+	
+	// 向每个居民发送呼叫通知
+	for _, resident := range device.Resident {
+		residentID := fmt.Sprintf("%d", resident.ID)
+		residentIDs = append(residentIDs, residentID)
+		
+		// 创建TRTC房间并生成签名
+		rtcRoomID, err := s.RTCService.CreateVideoCall(deviceID, residentID)
+		if err != nil {
+			log.Printf("[MQTT] 为居民 %s 创建TRTC房间失败: %v", residentID, err)
+			continue
+		}
+
+		// 为住户生成UserSig
+		tokenInfo, err := s.RTCService.GetUserSig(residentID)
+		if err != nil {
+			log.Printf("[MQTT] 为居民 %s 生成UserSig失败: %v", residentID, err)
+			continue
+		}
+
+		// 创建TRTC信息
+		trtcInfo := models.TRTCInfo{
+			RoomID:     rtcRoomID,
+			RoomIDType: "string",
+			SDKAppID:   tokenInfo.SDKAppID,
+			UserID:     tokenInfo.UserID,
+			UserSig:    tokenInfo.UserSig,
+		}
+
+		// 创建通话会话
+		_, err = s.CallManager.CreateSession(callID, deviceID, residentID, trtcInfo)
+		if err != nil {
+			log.Printf("[MQTT] 为居民 %s 创建通话会话失败: %v", residentID, err)
+			continue
+		}
+
+		// 发送呼入通知给住户
+		incomingNotification := IncomingCallNotification{
+			CallID:       callID,
+			DeviceID:     deviceID,
+			TargetUserID: residentID,
+			Timestamp:    time.Now().UnixMilli(),
+			TRTCInfo: TRTCInfo{
+				RoomIDType: trtcInfo.RoomIDType,
+				RoomID:     trtcInfo.RoomID,
+				SDKAppID:   trtcInfo.SDKAppID,
+				UserID:     trtcInfo.UserID,
+				UserSig:    trtcInfo.UserSig,
+			},
+		}
+
+		// 发布到住户的呼入通知主题
+		incomingTopic := fmt.Sprintf(TopicIncomingCallFormat, residentID)
+		if err := s.publishMessage(incomingTopic, incomingNotification); err != nil {
+			log.Printf("[MQTT] 发送呼入通知给居民 %s 失败: %v", residentID, err)
+			continue
+		}
+
+		// 创建通话记录
+		s.createCallRecord(callID, deviceID, residentID, "ringing")
+	}
+
+	if len(residentIDs) == 0 {
+		return "", nil, fmt.Errorf("没有成功向任何居民发起呼叫")
+	}
+
+	// 更新会话状态为振铃中
+	s.CallManager.UpdateSessionStatus(callID, "ringing")
+
+	// 发送振铃控制消息给设备
+	callerControl := CallInfo{
+		Action:    "ringing",
+		CallID:    callID,
+		Timestamp: time.Now().UnixMilli(),
+	}
+	callerTopic := fmt.Sprintf(TopicCallerControlFormat, deviceID)
+	if err := s.publishMessage(callerTopic, callerControl); err != nil {
+		log.Printf("[MQTT] 发送振铃控制消息失败: %v", err)
+	}
+
+	return callID, residentIDs, nil
 }

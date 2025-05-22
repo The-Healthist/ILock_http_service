@@ -50,11 +50,13 @@ type UpdateResidentRequest struct {
 }
 
 // GetResidents 获取所有居民
-// @Summary      Get Resident List
-// @Description  Get a list of all residents in the system
+// @Summary      获取居民列表
+// @Description  获取系统中所有居民的列表
 // @Tags         Resident
 // @Accept       json
 // @Produce      json
+// @Param        page query int false "页码，默认为1"
+// @Param        page_size query int false "每页条数，默认为10"
 // @Security     BearerAuth
 // @Success      200  {object}  map[string]interface{}
 // @Failure      401  {object}  ErrorResponse
@@ -97,12 +99,12 @@ func (c *ResidentController) GetResidents() {
 }
 
 // GetResident 获取单个居民
-// @Summary      Get Resident By ID
-// @Description  Get details of a specific resident by ID
+// @Summary      获取居民详情
+// @Description  根据ID获取特定居民的详细信息
 // @Tags         Resident
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Resident ID" example:"1"
+// @Param        id path int true "居民ID"
 // @Security     BearerAuth
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
@@ -158,16 +160,16 @@ func (c *ResidentController) GetResident() {
 }
 
 // CreateResident 创建新居民
-// @Summary      Create Resident
-// @Description  Create a new resident account, requiring association with a specific device
+// @Summary      创建居民
+// @Description  创建新的居民账户，需要关联到特定设备
 // @Tags         Resident
 // @Accept       json
 // @Produce      json
-// @Param        request body ResidentRequest true "Resident information - name, phone and device ID are required, email is optional"
+// @Param        request body ResidentRequest true "居民信息 - 姓名、电话和设备ID为必填，邮箱可选"
 // @Security     BearerAuth
-// @Success      201  {object}  map[string]interface{} "Success response with created resident details"
-// @Failure      400  {object}  ErrorResponse "Bad request, device not found or phone number already in use"
-// @Failure      500  {object}  ErrorResponse "Server error"
+// @Success      201  {object}  map[string]interface{} "成功响应，包含创建的居民详情"
+// @Failure      400  {object}  ErrorResponse "请求错误，设备不存在或电话号码已被使用"
+// @Failure      500  {object}  ErrorResponse "服务器错误"
 // @Router       /residents [post]
 func (c *ResidentController) CreateResident() {
 	var req ResidentRequest
@@ -216,13 +218,13 @@ func (c *ResidentController) CreateResident() {
 }
 
 // UpdateResident 更新居民信息
-// @Summary      Update Resident
-// @Description  Update details of a resident with the specified ID
+// @Summary      更新居民
+// @Description  更新现有居民的信息
 // @Tags         Resident
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Resident ID" example:"1"
-// @Param        request body UpdateResidentRequest true "Updated resident information"
+// @Param        id path int true "居民ID"
+// @Param        request body UpdateResidentRequest true "更新的居民信息"
 // @Security     BearerAuth
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
@@ -311,12 +313,12 @@ func (c *ResidentController) UpdateResident() {
 }
 
 // DeleteResident 删除居民
-// @Summary      Delete Resident
-// @Description  Delete a resident with the specified ID
+// @Summary      删除居民
+// @Description  删除指定ID的居民
 // @Tags         Resident
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Resident ID" example:"2"
+// @Param        id path int true "居民ID"
 // @Security     BearerAuth
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse

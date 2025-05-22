@@ -76,14 +76,14 @@ func HandleAdminFunc(container *container.ServiceContainer, method string) gin.H
 }
 
 // 1. GetAdmins 获取管理员列表
-// @Summary      Get Admin List
-// @Description  Get a list of all admin users with pagination
+// @Summary      获取管理员列表
+// @Description  分页获取所有管理员用户列表
 // @Tags         Admin
 // @Accept       json
 // @Produce      json
-// @Param        page query int false "Page number, default is 1" example:"1"
-// @Param        page_size query int false "Items per page, default is 10" example:"10"
-// @Param        search query string false "Search keyword for username, phone, etc." example:"admin"
+// @Param        page query int false "页码, 默认为1"
+// @Param        page_size query int false "每页条数, 默认为10"
+// @Param        search query string false "搜索关键词(用户名、电话等)"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      500  {object}  ErrorResponse
 // @Router       /admins [get]
@@ -140,12 +140,12 @@ func (c *AdminController) GetAdmins() {
 }
 
 // 2. GetAdmin 获取管理员详情
-// @Summary      Get Admin By ID
-// @Description  Get details of a specific admin by ID
+// @Summary      获取管理员详情
+// @Description  根据ID获取特定管理员的详细信息
 // @Tags         Admin
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Admin ID" example:"1"
+// @Param        id path int true "管理员ID"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -171,7 +171,7 @@ func (c *AdminController) GetAdmin() {
 	if err != nil {
 		c.Ctx.JSON(http.StatusNotFound, gin.H{
 			"code":    404,
-			"message": err.Error(),
+			"message": "管理员不存在",
 			"data":    nil,
 		})
 		return
@@ -193,12 +193,12 @@ func (c *AdminController) GetAdmin() {
 }
 
 // 3. CreateAdmin 创建管理员
-// @Summary      Create Admin
-// @Description  Create a new admin user
+// @Summary      创建管理员
+// @Description  创建一个新的管理员用户
 // @Tags         Admin
 // @Accept       json
 // @Produce      json
-// @Param        request body CreateAdminRequest true "Admin information"
+// @Param        request body CreateAdminRequest true "管理员信息"
 // @Success      201  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -255,13 +255,13 @@ func (c *AdminController) CreateAdmin() {
 }
 
 // 4. UpdateAdmin 更新管理员
-// @Summary      Update Admin
-// @Description  Update an existing admin user
+// @Summary      更新管理员
+// @Description  更新现有管理员用户的信息
 // @Tags         Admin
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Admin ID" example:"1"
-// @Param        request body UpdateAdminRequest true "Updated admin information"
+// @Param        id path int true "管理员ID"
+// @Param        request body UpdateAdminRequest true "更新的管理员信息"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -307,6 +307,14 @@ func (c *AdminController) UpdateAdmin() {
 	adminService := c.Container.GetService("admin").(services.InterfaceAdminService)
 	admin, err := adminService.UpdateAdmin(uint(id), updates)
 	if err != nil {
+		if err.Error() == "管理员不存在" {
+			c.Ctx.JSON(http.StatusNotFound, gin.H{
+				"code":    404,
+				"message": err.Error(),
+				"data":    nil,
+			})
+			return
+		}
 		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "更新管理员失败: " + err.Error(),
@@ -330,12 +338,12 @@ func (c *AdminController) UpdateAdmin() {
 }
 
 // 5. DeleteAdmin 删除管理员
-// @Summary      Delete Admin
-// @Description  Delete an admin user with the specified ID
+// @Summary      删除管理员
+// @Description  删除指定ID的管理员用户
 // @Tags         Admin
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Admin ID" example:"2"
+// @Param        id path int true "管理员ID"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse

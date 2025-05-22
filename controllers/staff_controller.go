@@ -35,14 +35,14 @@ func NewStaffController(ctx *gin.Context, container *container.ServiceContainer)
 }
 
 // GetStaffs 获取物业员工列表
-// @Summary      Get Property Staff List
-// @Description  Get a list of all property staff members, with pagination and search support
+// @Summary      获取物业员工列表
+// @Description  获取所有物业员工的列表，支持分页和搜索
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        page query int false "Page number, default is 1" example:"1"
-// @Param        page_size query int false "Items per page, default is 10" example:"10"
-// @Param        search query string false "Search keyword for name, phone, etc." example:"manager"
+// @Param        page query int false "页码，默认为1" example:"1"
+// @Param        page_size query int false "每页条数，默认为10" example:"10"
+// @Param        search query string false "搜索关键词(姓名、电话等)" example:"manager"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      500  {object}  ErrorResponse
 // @Router       /staffs [get]
@@ -102,12 +102,12 @@ func (c *StaffController) GetStaffs() {
 }
 
 // GetStaff 获取单个物业员工详情
-// @Summary      Get Property Staff By ID
-// @Description  Get details of a specific property staff member by ID
+// @Summary      获取物业员工详情
+// @Description  根据ID获取特定物业员工的详细信息
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Property Staff ID" example:"1"
+// @Param        id path int true "物业员工ID" example:"1"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -131,7 +131,7 @@ func (c *StaffController) GetStaff() {
 	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
 	staff, err := staffService.GetStaffByIDWithDevices(uint(id))
 	if err != nil {
-		if err.Error() == "记录不存在" {
+		if err.Error() == "物业员工不存在" {
 			c.Ctx.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
 				"message": "物业员工不存在",
@@ -188,12 +188,12 @@ type CreateStaffRequest struct {
 }
 
 // CreateStaff 创建新物业员工
-// @Summary      Create Property Staff
-// @Description  Create a new property staff member
+// @Summary      创建物业员工
+// @Description  创建一个新的物业员工
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        request body CreateStaffRequest true "Property staff information"
+// @Param        request body CreateStaffRequest true "物业员工信息"
 // @Success      201  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -225,7 +225,7 @@ func (c *StaffController) CreateStaff() {
 	// 使用 StaffService 创建物业员工
 	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
 	if err := staffService.CreateStaff(staff); err != nil {
-		if err.Error() == "手机号已被注册" || err.Error() == "用户名已存在" {
+		if err.Error() == "手机号已被使用" || err.Error() == "用户名已存在" {
 			c.Ctx.JSON(http.StatusBadRequest, gin.H{
 				"code":    400,
 				"message": err.Error(),
@@ -295,13 +295,13 @@ type UpdateStaffRequest struct {
 }
 
 // UpdateStaff 更新物业员工信息
-// @Summary      Update Property Staff
-// @Description  Update an existing property staff member
+// @Summary      更新物业员工
+// @Description  更新现有物业员工的信息
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Property Staff ID" example:"1"
-// @Param        request body UpdateStaffRequest true "Updated property staff information"
+// @Param        id path int true "物业员工ID" example:"1"
+// @Param        request body UpdateStaffRequest true "更新的物业员工信息"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -362,7 +362,7 @@ func (c *StaffController) UpdateStaff() {
 	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
 	staff, err := staffService.UpdateStaff(uint(id), updates)
 	if err != nil {
-		if err.Error() == "记录不存在" {
+		if err.Error() == "物业员工不存在" {
 			c.Ctx.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
 				"message": "物业员工不存在",
@@ -467,12 +467,12 @@ func (c *StaffController) UpdateStaff() {
 }
 
 // DeleteStaff 删除物业员工
-// @Summary      Delete Property Staff
-// @Description  Delete a property staff member with the specified ID
+// @Summary      删除物业员工
+// @Description  删除指定ID的物业员工
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        id path int true "Property Staff ID" example:"2"
+// @Param        id path int true "物业员工ID" example:"2"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -495,7 +495,7 @@ func (c *StaffController) DeleteStaff() {
 	// 使用 StaffService 删除物业员工
 	staffService := c.Container.GetService("staff").(services.InterfaceStaffService)
 	if err := staffService.DeleteStaff(uint(id)); err != nil {
-		if err.Error() == "记录不存在" {
+		if err.Error() == "物业员工不存在" {
 			c.Ctx.JSON(http.StatusNotFound, gin.H{
 				"code":    404,
 				"message": "物业员工不存在",
@@ -519,14 +519,14 @@ func (c *StaffController) DeleteStaff() {
 }
 
 // GetStaffsWithDevices 获取包含关联设备的物业员工列表
-// @Summary      Get Property Staff List With Devices
-// @Description  Get a list of all property staff members with their associated devices
+// @Summary      获取带设备信息的物业员工列表
+// @Description  获取所有物业员工的列表及其关联的设备信息
 // @Tags         Staff
 // @Accept       json
 // @Produce      json
-// @Param        page query int false "Page number, default is 1" example:"1"
-// @Param        page_size query int false "Items per page, default is 10" example:"10"
-// @Param        search query string false "Search keyword for name, phone, etc." example:"manager"
+// @Param        page query int false "页码，默认为1" example:"1"
+// @Param        page_size query int false "每页条数，默认为10" example:"10"
+// @Param        search query string false "搜索关键词(姓名、电话等)" example:"manager"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      500  {object}  ErrorResponse
 // @Router       /staffs/with-devices [get]

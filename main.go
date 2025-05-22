@@ -10,7 +10,7 @@
 // @license.name  Apache 2.0
 // @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
 
-// @host      localhost:20033
+// @host      39.108.49.167:20033
 // @BasePath  /api
 
 // @securityDefinitions.apikey  BearerAuth

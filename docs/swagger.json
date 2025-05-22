@@ -296,241 +296,6 @@
                 }
             }
         },
-        "/api/mqtt/callee-action": {
-            "post": {
-                "description": "Process callee's reject, hangup or timeout actions",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT Call"
-                ],
-                "summary": "Handle MQTT Callee Action",
-                "parameters": [
-                    {
-                        "description": "Call action request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.CallActionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/mqtt/caller-action": {
-            "post": {
-                "description": "Process caller's cancel or hangup actions",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT Call"
-                ],
-                "summary": "Handle MQTT Caller Action",
-                "parameters": [
-                    {
-                        "description": "Call action request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.CallActionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/mqtt/device/status": {
-            "post": {
-                "description": "Publish device status information via MQTT",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT"
-                ],
-                "summary": "Publish Device Status",
-                "parameters": [
-                    {
-                        "description": "Device status information",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.PublishDeviceStatusRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/mqtt/initiate": {
-            "post": {
-                "description": "Start a new call via MQTT",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT Call"
-                ],
-                "summary": "Initiate MQTT Call",
-                "parameters": [
-                    {
-                        "description": "Call initiation request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.InitiateCallRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/api/mqtt/system/message": {
-            "post": {
-                "description": "Publish system message via MQTT",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT"
-                ],
-                "summary": "Publish System Message",
-                "parameters": [
-                    {
-                        "description": "System message information",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.PublishSystemMessageRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/api/rtc/call": {
             "post": {
                 "description": "Initiate a video call between a device and a resident",
@@ -998,6 +763,64 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/controllers.CallFeedbackRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/device/status": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "设备用于报告在线状态的简单健康检测接口",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device"
+                ],
+                "summary": "设备健康检测",
+                "parameters": [
+                    {
+                        "description": "设备健康检测请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceHealthRequest"
                         }
                     }
                 ],
@@ -1504,6 +1327,337 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/controllers.EmergencyUnlockRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/call": {
+            "post": {
+                "description": "Start a new call via MQTT to all residents associated with the device",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Initiate MQTT Call",
+                "parameters": [
+                    {
+                        "description": "Call initiation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.InitiateCallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.InitiateCallResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/controller/device": {
+            "post": {
+                "description": "Process device side call actions (hangup, cancelled)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Handle MQTT Caller Action",
+                "parameters": [
+                    {
+                        "description": "Device call action request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/controller/resident": {
+            "post": {
+                "description": "Process resident side call actions (answered, rejected, hangup, timeout)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Handle MQTT Callee Action",
+                "parameters": [
+                    {
+                        "description": "Resident call action request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/device/status": {
+            "post": {
+                "description": "更新设备状态信息，包括在线状态、电池电量和其他自定义属性，无需MQTT连接",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device"
+                ],
+                "summary": "Update Device Status",
+                "parameters": [
+                    {
+                        "description": "设备状态信息：包含设备ID、在线状态、电池电量等",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.PublishDeviceStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/end-session": {
+            "post": {
+                "description": "Forcefully end a call session and notify all parties",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "End MQTT Call Session",
+                "parameters": [
+                    {
+                        "description": "End call session request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.EndCallSessionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/session": {
+            "get": {
+                "description": "Retrieve call session information with TRTC details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Get MQTT Call Session",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Call session ID",
+                        "name": "call_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallSessionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/system/message": {
+            "post": {
+                "description": "Publish system message via MQTT",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "Publish System Message",
+                "parameters": [
+                    {
+                        "description": "System message information",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.PublishSystemMessageRequest"
                         }
                     }
                 ],
@@ -2266,6 +2420,23 @@
                 }
             }
         },
+        "controllers.CallInfo": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "call_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "integer"
+                }
+            }
+        },
         "controllers.CallRequest": {
             "type": "object",
             "required": [
@@ -2278,6 +2449,32 @@
                 },
                 "resident_id": {
                     "type": "string"
+                }
+            }
+        },
+        "controllers.CallSessionResponse": {
+            "type": "object",
+            "properties": {
+                "call_id": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "last_activity": {
+                    "type": "string"
+                },
+                "resident_id": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "tencen_rtc": {
+                    "$ref": "#/definitions/controllers.TRTCInfo"
                 }
             }
         },
@@ -2310,6 +2507,18 @@
         },
         "controllers.CreateStaffRequest": {
             "type": "object"
+        },
+        "controllers.DeviceHealthRequest": {
+            "type": "object",
+            "required": [
+                "device_id"
+            ],
+            "properties": {
+                "device_id": {
+                    "type": "string",
+                    "example": "1"
+                }
+            }
         },
         "controllers.DeviceRequest": {
             "type": "object"
@@ -2402,6 +2611,20 @@
                 }
             }
         },
+        "controllers.EndCallSessionRequest": {
+            "type": "object",
+            "required": [
+                "call_id"
+            ],
+            "properties": {
+                "call_id": {
+                    "type": "string"
+                },
+                "reason": {
+                    "type": "string"
+                }
+            }
+        },
         "controllers.ErrorResponse": {
             "type": "object",
             "properties": {
@@ -2431,15 +2654,43 @@
         "controllers.InitiateCallRequest": {
             "type": "object",
             "required": [
-                "callee_id",
-                "caller_id"
+                "device_device_id",
+                "target_resident_id"
             ],
             "properties": {
-                "callee_id": {
+                "device_device_id": {
+                    "description": "使用与MQTT通讯中相同的字段名",
                     "type": "string"
                 },
-                "caller_id": {
+                "target_resident_id": {
+                    "description": "使用与MQTT通讯中相同的字段名",
                     "type": "string"
+                }
+            }
+        },
+        "controllers.InitiateCallResponse": {
+            "type": "object",
+            "properties": {
+                "call_id": {
+                    "type": "string"
+                },
+                "call_info": {
+                    "$ref": "#/definitions/controllers.CallInfo"
+                },
+                "device_device_id": {
+                    "type": "string"
+                },
+                "target_resident_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "tencen_rtc": {
+                    "$ref": "#/definitions/controllers.TRTCInfo"
+                },
+                "timestamp": {
+                    "type": "integer"
                 }
             }
         },
@@ -2566,6 +2817,26 @@
                 "phone": {
                     "type": "string",
                     "example": "13812345678"
+                }
+            }
+        },
+        "controllers.TRTCInfo": {
+            "type": "object",
+            "properties": {
+                "room_id": {
+                    "type": "string"
+                },
+                "room_id_type": {
+                    "type": "string"
+                },
+                "sdk_app_id": {
+                    "type": "integer"
+                },
+                "user_id": {
+                    "type": "string"
+                },
+                "user_sig": {
+                    "type": "string"
                 }
             }
         },
@@ -2720,7 +2991,7 @@
                     "type": "integer"
                 },
                 "duration": {
-                    "description": "in seconds",
+                    "description": "通话时长",
                     "type": "integer"
                 },
                 "id": {
@@ -2733,6 +3004,7 @@
                     "type": "integer"
                 },
                 "timestamp": {
+                    "description": "通话开始时间",
                     "type": "string"
                 }
             }

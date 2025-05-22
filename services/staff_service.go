@@ -66,7 +66,7 @@ func (s *StaffService) GetStaffByID(id uint) (*models.PropertyStaff, error) {
 	var staff models.PropertyStaff
 	if err := s.DB.First(&staff, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("物业人员不存在")
+			return nil, errors.New("物业员工不存在")
 		}
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (s *StaffService) UpdateStaff(id uint, updates map[string]interface{}) (*mo
 			return nil, err
 		}
 		if count > 0 {
-			return nil, errors.New("手机号已被其他物业人员使用")
+			return nil, errors.New("手机号已被其他物业员工使用")
 		}
 	}
 
@@ -127,7 +127,7 @@ func (s *StaffService) UpdateStaff(id uint, updates map[string]interface{}) (*mo
 			return nil, err
 		}
 		if count > 0 {
-			return nil, errors.New("用户名已被其他物业人员使用")
+			return nil, errors.New("用户名已被其他物业员工使用")
 		}
 	}
 

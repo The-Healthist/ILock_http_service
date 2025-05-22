@@ -31,6 +31,17 @@ definitions:
     required:
     - rating
     type: object
+  controllers.CallInfo:
+    properties:
+      action:
+        type: string
+      call_id:
+        type: string
+      reason:
+        type: string
+      timestamp:
+        type: integer
+    type: object
   controllers.CallRequest:
     properties:
       device_id:
@@ -40,6 +51,23 @@ definitions:
     required:
     - device_id
     - resident_id
+    type: object
+  controllers.CallSessionResponse:
+    properties:
+      call_id:
+        type: string
+      device_id:
+        type: string
+      last_activity:
+        type: string
+      resident_id:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+      tencen_rtc:
+        $ref: '#/definitions/controllers.TRTCInfo'
     type: object
   controllers.CreateAdminRequest:
     properties:
@@ -62,6 +90,14 @@ definitions:
     - username
     type: object
   controllers.CreateStaffRequest:
+    type: object
+  controllers.DeviceHealthRequest:
+    properties:
+      device_id:
+        example: "1"
+        type: string
+    required:
+    - device_id
     type: object
   controllers.DeviceRequest:
     type: object
@@ -131,6 +167,15 @@ definitions:
     required:
     - reason
     type: object
+  controllers.EndCallSessionRequest:
+    properties:
+      call_id:
+        type: string
+      reason:
+        type: string
+    required:
+    - call_id
+    type: object
   controllers.ErrorResponse:
     properties:
       code:
@@ -151,13 +196,32 @@ definitions:
     type: object
   controllers.InitiateCallRequest:
     properties:
-      callee_id:
+      device_device_id:
+        description: 使用与MQTT通讯中相同的字段名
         type: string
-      caller_id:
+      target_resident_id:
+        description: 使用与MQTT通讯中相同的字段名
         type: string
     required:
-    - callee_id
-    - caller_id
+    - device_device_id
+    - target_resident_id
+    type: object
+  controllers.InitiateCallResponse:
+    properties:
+      call_id:
+        type: string
+      call_info:
+        $ref: '#/definitions/controllers.CallInfo'
+      device_device_id:
+        type: string
+      target_resident_ids:
+        items:
+          type: string
+        type: array
+      tencen_rtc:
+        $ref: '#/definitions/controllers.TRTCInfo'
+      timestamp:
+        type: integer
     type: object
   controllers.LoginData:
     properties:
@@ -247,6 +311,19 @@ definitions:
     - device_id
     - name
     - phone
+    type: object
+  controllers.TRTCInfo:
+    properties:
+      room_id:
+        type: string
+      room_id_type:
+        type: string
+      sdk_app_id:
+        type: integer
+      user_id:
+        type: string
+      user_sig:
+        type: string
     type: object
   controllers.TencentCallRequest:
     properties:
@@ -351,7 +428,7 @@ definitions:
       device_id:
         type: integer
       duration:
-        description: in seconds
+        description: 通话时长
         type: integer
       id:
         type: integer
@@ -360,6 +437,7 @@ definitions:
       resident_id:
         type: integer
       timestamp:
+        description: 通话开始时间
         type: string
     type: object
   models.CallStatus:
@@ -708,161 +786,6 @@ paths:
       summary: Update Admin
       tags:
       - Admin
-  /api/mqtt/callee-action:
-    post:
-      consumes:
-      - application/json
-      description: Process callee's reject, hangup or timeout actions
-      parameters:
-      - description: Call action request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/controllers.CallActionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Handle MQTT Callee Action
-      tags:
-      - MQTT Call
-  /api/mqtt/caller-action:
-    post:
-      consumes:
-      - application/json
-      description: Process caller's cancel or hangup actions
-      parameters:
-      - description: Call action request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/controllers.CallActionRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Handle MQTT Caller Action
-      tags:
-      - MQTT Call
-  /api/mqtt/device/status:
-    post:
-      consumes:
-      - application/json
-      description: Publish device status information via MQTT
-      parameters:
-      - description: Device status information
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/controllers.PublishDeviceStatusRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Publish Device Status
-      tags:
-      - MQTT
-  /api/mqtt/initiate:
-    post:
-      consumes:
-      - application/json
-      description: Start a new call via MQTT
-      parameters:
-      - description: Call initiation request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/controllers.InitiateCallRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Initiate MQTT Call
-      tags:
-      - MQTT Call
-  /api/mqtt/system/message:
-    post:
-      consumes:
-      - application/json
-      description: Publish system message via MQTT
-      parameters:
-      - description: System message information
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/controllers.PublishSystemMessageRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Publish System Message
-      tags:
-      - MQTT
   /api/rtc/call:
     post:
       consumes:
@@ -1184,6 +1107,43 @@ paths:
       summary: Get Call Statistics
       tags:
       - CallRecord
+  /device/status:
+    post:
+      consumes:
+      - application/json
+      description: 设备用于报告在线状态的简单健康检测接口
+      parameters:
+      - description: 设备健康检测请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.DeviceHealthRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 设备健康检测
+      tags:
+      - device
   /devices:
     get:
       consumes:
@@ -1502,6 +1462,226 @@ paths:
       summary: Emergency Unlock All Doors
       tags:
       - Emergency
+  /mqtt/call:
+    post:
+      consumes:
+      - application/json
+      description: Start a new call via MQTT to all residents associated with the
+        device
+      parameters:
+      - description: Call initiation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.InitiateCallRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.InitiateCallResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Initiate MQTT Call
+      tags:
+      - MQTT
+  /mqtt/controller/device:
+    post:
+      consumes:
+      - application/json
+      description: Process device side call actions (hangup, cancelled)
+      parameters:
+      - description: Device call action request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CallActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Handle MQTT Caller Action
+      tags:
+      - MQTT
+  /mqtt/controller/resident:
+    post:
+      consumes:
+      - application/json
+      description: Process resident side call actions (answered, rejected, hangup,
+        timeout)
+      parameters:
+      - description: Resident call action request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.CallActionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Handle MQTT Callee Action
+      tags:
+      - MQTT
+  /mqtt/device/status:
+    post:
+      consumes:
+      - application/json
+      description: 更新设备状态信息，包括在线状态、电池电量和其他自定义属性，无需MQTT连接
+      parameters:
+      - description: 设备状态信息：包含设备ID、在线状态、电池电量等
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.PublishDeviceStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Update Device Status
+      tags:
+      - Device
+  /mqtt/end-session:
+    post:
+      consumes:
+      - application/json
+      description: Forcefully end a call session and notify all parties
+      parameters:
+      - description: End call session request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.EndCallSessionRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: End MQTT Call Session
+      tags:
+      - MQTT
+  /mqtt/session:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve call session information with TRTC details
+      parameters:
+      - description: Call session ID
+        in: query
+        name: call_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controllers.CallSessionResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Get MQTT Call Session
+      tags:
+      - MQTT
+  /mqtt/system/message:
+    post:
+      consumes:
+      - application/json
+      description: Publish system message via MQTT
+      parameters:
+      - description: System message information
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.PublishSystemMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      summary: Publish System Message
+      tags:
+      - MQTT
   /residents:
     get:
       consumes:
