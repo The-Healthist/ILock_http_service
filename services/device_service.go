@@ -61,7 +61,10 @@ func (s *DeviceService) GetDevicesByBuilding(buildingID uint) ([]models.Device, 
 // 2 GetDeviceByID 根据ID获取设备
 func (s *DeviceService) GetDeviceByID(id uint) (*models.Device, error) {
 	var device models.Device
-	if err := s.DB.Preload("Staff").Preload("Building").Preload("Households").First(&device, id).Error; err != nil {
+	if err := s.DB.Preload("Staff").
+		Preload("Building").
+		Preload("Household").
+		First(&device, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("设备不存在")
 		}
@@ -123,11 +126,8 @@ func (s *DeviceService) DeleteDevice(id uint) error {
 		return err
 	}
 
-	// 删除设备与户号的关联关系
-	if err := s.DB.Exec("DELETE FROM household_device_relations WHERE device_id = ?", id).Error; err != nil {
-		return err
-	}
-
+	// 不再需要删除多对多关系表中的记录
+	// 直接删除设备即可
 	return s.DB.Delete(device).Error
 }
 
@@ -179,12 +179,20 @@ func (s *DeviceService) GetDeviceHouseholds(deviceID uint) ([]models.Household, 
 		return nil, err
 	}
 
-	var households []models.Household
-	if err := s.DB.Model(device).Association("Households").Find(&households); err != nil {
+	// 如果设备没有关联户号
+	if device.HouseholdID == 0 {
+		return nil, errors.New("设备未关联户号")
+	}
+
+	var household models.Household
+	if err := s.DB.First(&household, device.HouseholdID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("关联的户号不存在")
+		}
 		return nil, err
 	}
 
-	return households, nil
+	return []models.Household{household}, nil
 }
 
 // 11 GetDeviceBuilding 获取设备所属的楼号

@@ -21,7 +21,6 @@ type Device struct {
 
 	// Relations - 关联关系
 	Staff         []PropertyStaff `gorm:"many2many:staff_device_relations;" json:"staff,omitempty"` // 通过关系表关联的物业人员列表
-	Residents     []Resident      `gorm:"foreignKey:DeviceID" json:"residents,omitempty"`           // 关联的居民（一对多）
 	Building      *Building       `gorm:"foreignKey:BuildingID" json:"building,omitempty"`          // 关联的楼号（多对一）
 	Household     *Household      `gorm:"foreignKey:HouseholdID" json:"household,omitempty"`        // 关联的户号（多对一）
 	CallRecords   []CallRecord    `gorm:"foreignKey:DeviceID" json:"call_records,omitempty"`

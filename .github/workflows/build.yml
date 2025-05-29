@@ -1,216 +1,216 @@
-name: Build and Deploy
+# name: Build and Deploy
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+# on:
+#   push:
+#     branches: [ main ]
+#   pull_request:
+#     branches: [ main ]
 
-env:
-  GO_VERSION: '1.23.0'
-  DOCKER_IMAGE: stonesea/ilock-http-service
-  DOCKER_REGISTRY: docker.imgdb.de
+# env:
+#   GO_VERSION: '1.23.0'
+#   DOCKER_IMAGE: stonesea/ilock-http-service
+#   DOCKER_REGISTRY: docker.imgdb.de
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     steps:
+#     - uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: ${{ env.GO_VERSION }}
+#     - name: Set up Go
+#       uses: actions/setup-go@v4
+#       with:
+#         go-version: ${{ env.GO_VERSION }}
         
-    - name: Verify Go modules
-      run: |
-        go mod verify
-        go mod tidy
+#     - name: Verify Go modules
+#       run: |
+#         go mod verify
+#         go mod tidy
 
-    - name: Build
-      run: |
-        export GOPROXY=https://goproxy.cn,direct
-        go build -v ./...
+#     - name: Build
+#       run: |
+#         export GOPROXY=https://goproxy.cn,direct
+#         go build -v ./...
 
-    - name: Test
-      run: go test -v ./...
+#     - name: Test
+#       run: go test -v ./...
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+#     - name: Set up Docker Buildx
+#       uses: docker/setup-buildx-action@v3
 
-    - name: Login to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+#     - name: Login to Docker Hub
+#       uses: docker/login-action@v3
+#       with:
+#         username: ${{ secrets.DOCKER_USERNAME }}
+#         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: ${{ env.DOCKER_IMAGE }}:latest
-        cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
-        cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
+#     - name: Build and push Docker image
+#       uses: docker/build-push-action@v5
+#       with:
+#         context: .
+#         push: true
+#         tags: ${{ env.DOCKER_IMAGE }}:latest
+#         cache-from: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache
+#         cache-to: type=registry,ref=${{ env.DOCKER_IMAGE }}:buildcache,mode=max
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+#   deploy:
+#     needs: build
+#     runs-on: ubuntu-latest
+#     if: github.ref == 'refs/heads/main'
     
-    steps:
-    - uses: actions/checkout@v3
+#     steps:
+#     - uses: actions/checkout@v3
 
-    - name: Copy deployment files
-      uses: appleboy/scp-action@master
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        password: ${{ secrets.SSH_PASSWORD }}
-        port: ${{ secrets.SSH_PORT }}
-        source: "docker-compose.yml .env"
-        target: "/root/ilock"
-        strip_components: 0
+#     - name: Copy deployment files
+#       uses: appleboy/scp-action@master
+#       with:
+#         host: ${{ secrets.SSH_HOST }}
+#         username: ${{ secrets.SSH_USERNAME }}
+#         password: ${{ secrets.SSH_PASSWORD }}
+#         port: ${{ secrets.SSH_PORT }}
+#         source: "docker-compose.yml .env"
+#         target: "/root/ilock"
+#         strip_components: 0
 
-    - name: Deploy to server
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        password: ${{ secrets.SSH_PASSWORD }}
-        port: ${{ secrets.SSH_PORT }}
-        script: |
-          cd /root/ilock
+#     - name: Deploy to server
+#       uses: appleboy/ssh-action@master
+#       with:
+#         host: ${{ secrets.SSH_HOST }}
+#         username: ${{ secrets.SSH_USERNAME }}
+#         password: ${{ secrets.SSH_PASSWORD }}
+#         port: ${{ secrets.SSH_PORT }}
+#         script: |
+#           cd /root/ilock
           
-          # 确保目录存在
-          mkdir -p /root/ilock/logs
+#           # 确保目录存在
+#           mkdir -p /root/ilock/logs
           
-          # 配置 Docker 镜像加速器
-          echo '{
-            "registry-mirrors": [
-              "https://docker.1ms.run",
-              "https://docker.mybacc.com",
-              "https://dytt.online",
-              "https://lispy.org",
-              "https://docker.xiaogenban1993.com",
-              "https://docker.yomansunter.com",
-              "https://aicarbon.xyz",
-              "https://666860.xyz",
-              "https://docker.zhai.cm",
-              "https://a.ussh.net",
-              "https://hub.littlediary.cn",
-              "https://hub.rat.dev",
-              "https://docker.m.daocloud.io",
-              "https://registry.cn-hangzhou.aliyuncs.com"
-            ]
-          }' | sudo tee /etc/docker/daemon.json
+#           # 配置 Docker 镜像加速器
+#           echo '{
+#             "registry-mirrors": [
+#               "https://docker.1ms.run",
+#               "https://docker.mybacc.com",
+#               "https://dytt.online",
+#               "https://lispy.org",
+#               "https://docker.xiaogenban1993.com",
+#               "https://docker.yomansunter.com",
+#               "https://aicarbon.xyz",
+#               "https://666860.xyz",
+#               "https://docker.zhai.cm",
+#               "https://a.ussh.net",
+#               "https://hub.littlediary.cn",
+#               "https://hub.rat.dev",
+#               "https://docker.m.daocloud.io",
+#               "https://registry.cn-hangzhou.aliyuncs.com"
+#             ]
+#           }' | sudo tee /etc/docker/daemon.json
           
-          # 重启 Docker 服务
-          sudo systemctl daemon-reload
-          sudo systemctl restart docker
+#           # 重启 Docker 服务
+#           sudo systemctl daemon-reload
+#           sudo systemctl restart docker
           
-          # 停止并删除所有相关容器
-          echo "停止并清理现有服务..."
-          docker-compose down --volumes --remove-orphans || true
+#           # 停止并删除所有相关容器
+#           echo "停止并清理现有服务..."
+#           docker-compose down --volumes --remove-orphans || true
           
-          # 删除旧的镜像
-          echo "清理旧镜像..."
-          docker rmi stonesea/ilock-http-service:latest || true
+#           # 删除旧的镜像
+#           echo "清理旧镜像..."
+#           docker rmi stonesea/ilock-http-service:latest || true
           
-          # 拉取镜像（带重试机制）
-          echo "开始拉取镜像..."
-          max_retries=5
-          retry_count=0
+#           # 拉取镜像（带重试机制）
+#           echo "开始拉取镜像..."
+#           max_retries=5
+#           retry_count=0
           
-          while [ $retry_count -lt $max_retries ]; do
-            if docker-compose pull; then
-              echo "镜像拉取成功"
-              break
-            else
-              retry_count=$((retry_count+1))
-              if [ $retry_count -eq $max_retries ]; then
-                echo "镜像拉取失败，已达到最大重试次数"
-                exit 1
-              fi
-              echo "镜像拉取失败，等待 10 秒后进行第 $retry_count 次重试..."
-              sleep 10
-            fi
-          done
+#           while [ $retry_count -lt $max_retries ]; do
+#             if docker-compose pull; then
+#               echo "镜像拉取成功"
+#               break
+#             else
+#               retry_count=$((retry_count+1))
+#               if [ $retry_count -eq $max_retries ]; then
+#                 echo "镜像拉取失败，已达到最大重试次数"
+#                 exit 1
+#               fi
+#               echo "镜像拉取失败，等待 10 秒后进行第 $retry_count 次重试..."
+#               sleep 10
+#             fi
+#           done
           
-          # 启动服务
-          echo "启动服务..."
-          docker-compose up -d
+#           # 启动服务
+#           echo "启动服务..."
+#           docker-compose up -d
           
-          # 等待并检查服务启动状态
-          echo "等待服务启动并检查状态..."
+#           # 等待并检查服务启动状态
+#           echo "等待服务启动并检查状态..."
           
-          # 检查 MySQL 就绪状态
-          echo "正在等待 MySQL 就绪..."
-          for i in {1..30}; do
-            if docker-compose ps db | grep -q "Up"; then
-              if docker exec ilock_mysql mysqladmin ping -h localhost --silent; then
-                echo "MySQL 已就绪 (尝试 $i/30)"
-                break
-              fi
-            fi
-            if [ $i -eq 30 ]; then
-              echo "MySQL 启动超时"
-              docker-compose logs db
-              exit 1
-            fi
-            echo "MySQL 启动中... (尝试 $i/30)"
-            sleep 2
-          done
+#           # 检查 MySQL 就绪状态
+#           echo "正在等待 MySQL 就绪..."
+#           for i in {1..30}; do
+#             if docker-compose ps db | grep -q "Up"; then
+#               if docker exec ilock_mysql mysqladmin ping -h localhost --silent; then
+#                 echo "MySQL 已就绪 (尝试 $i/30)"
+#                 break
+#               fi
+#             fi
+#             if [ $i -eq 30 ]; then
+#               echo "MySQL 启动超时"
+#               docker-compose logs db
+#               exit 1
+#             fi
+#             echo "MySQL 启动中... (尝试 $i/30)"
+#             sleep 2
+#           done
           
-          # 检查 Redis 就绪状态
-          echo "正在等待 Redis 就绪..."
-          for i in {1..30}; do
-            if docker-compose ps redis | grep -q "Up"; then
-              if docker exec ilock_redis redis-cli ping | grep -q "PONG"; then
-                echo "Redis 已就绪 (尝试 $i/30)"
-                break
-              fi
-            fi
-            if [ $i -eq 30 ]; then
-              echo "Redis 启动超时"
-              docker-compose logs redis
-              exit 1
-            fi
-            echo "Redis 启动中... (尝试 $i/30)"
-            sleep 2
-          done
+#           # 检查 Redis 就绪状态
+#           echo "正在等待 Redis 就绪..."
+#           for i in {1..30}; do
+#             if docker-compose ps redis | grep -q "Up"; then
+#               if docker exec ilock_redis redis-cli ping | grep -q "PONG"; then
+#                 echo "Redis 已就绪 (尝试 $i/30)"
+#                 break
+#               fi
+#             fi
+#             if [ $i -eq 30 ]; then
+#               echo "Redis 启动超时"
+#               docker-compose logs redis
+#               exit 1
+#             fi
+#             echo "Redis 启动中... (尝试 $i/30)"
+#             sleep 2
+#           done
           
-          # 检查应用服务健康状态
-          echo "正在等待应用服务就绪..."
-          for i in {1..60}; do
-            if docker-compose ps app | grep -q "Up"; then
-              if curl -s http://localhost:20033/api/ping > /dev/null 2>&1; then
-                echo "应用服务启动成功！(尝试 $i/60)"
-                echo "所有服务状态："
-                docker-compose ps
+#           # 检查应用服务健康状态
+#           echo "正在等待应用服务就绪..."
+#           for i in {1..60}; do
+#             if docker-compose ps app | grep -q "Up"; then
+#               if curl -s http://localhost:20033/api/ping > /dev/null 2>&1; then
+#                 echo "应用服务启动成功！(尝试 $i/60)"
+#                 echo "所有服务状态："
+#                 docker-compose ps
                 
-                exit 0
-              fi
-            fi
+#                 exit 0
+#               fi
+#             fi
             
-            if [ $i -eq 60 ]; then
-              echo "应用服务启动超时"
-              echo "应用服务日志："
-              docker-compose logs app
-              break
-            fi
+#             if [ $i -eq 60 ]; then
+#               echo "应用服务启动超时"
+#               echo "应用服务日志："
+#               docker-compose logs app
+#               break
+#             fi
             
-            if [ $((i % 5)) -eq 0 ]; then
-              echo "应用服务启动中... (尝试 $i/60)"
-              echo "最新日志："
-              docker-compose logs --tail=10 app
-            fi
-            sleep 2
-          done
+#             if [ $((i % 5)) -eq 0 ]; then
+#               echo "应用服务启动中... (尝试 $i/60)"
+#               echo "最新日志："
+#               docker-compose logs --tail=10 app
+#             fi
+#             sleep 2
+#           done
           
-          echo "服务启动失败"
-          echo "完整服务状态："
-          docker-compose ps
-          echo "所有服务日志："
-          docker-compose logs
-          exit 1 
+#           echo "服务启动失败"
+#           echo "完整服务状态："
+#           docker-compose ps
+#           echo "所有服务日志："
+#           docker-compose logs
+#           exit 1 

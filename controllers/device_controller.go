@@ -58,7 +58,7 @@ type DeviceRequestInput struct {
 	Location     string `json:"location" example:"小区北门入口"`
 	BuildingID   uint   `json:"building_id" example:"1"`     // 关联的楼号ID
 	HouseholdIDs []uint `json:"household_ids" example:"1,2"` // 关联的户号ID列表
-	StaffIDs     []uint `json:"staff_ids" example:"1,2,3"`   // 关联的物业员工ID列表
+	StaffIDs     []uint `json:"staff_ids" example:"1,2,3"`   // 关联的物业员工ID列表(可选)
 }
 
 // DeviceBuildingRequest 设备关联楼号请求
@@ -284,7 +284,7 @@ func (c *DeviceController) CreateDevice() {
 		}
 	}
 
-	// 创建设备
+	// 创建设备 - 这里不设置household_id
 	if err := deviceService.CreateDevice(device); err != nil {
 		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -297,10 +297,21 @@ func (c *DeviceController) CreateDevice() {
 	// 如果提供了户号ID列表，关联户号
 	if len(req.HouseholdIDs) > 0 {
 		householdService := c.Container.GetService("household").(services.InterfaceHouseholdService)
-		for _, householdID := range req.HouseholdIDs {
-			if err := householdService.AssociateHouseholdWithDevice(householdID, device.ID); err != nil {
-				// 这里只记录错误，不中断流程
-				// TODO: 可以考虑更好的错误处理方式
+
+		// 关联第一个户号
+		if len(req.HouseholdIDs) > 0 {
+			householdID := req.HouseholdIDs[0]
+			// 检查户号是否存在
+			_, err := householdService.GetHouseholdByID(householdID)
+			if err == nil {
+				// 使用关联API而不是直接设置household_id
+				if err := householdService.AssociateHouseholdWithDevice(householdID, device.ID); err != nil {
+					c.Ctx.Error(err)
+				} else {
+					// 关联成功后，设备的household_id会被更新
+					device, _ = deviceService.GetDeviceByID(device.ID)
+				}
+			} else {
 				c.Ctx.Error(err)
 			}
 		}
@@ -832,18 +843,17 @@ func (c *DeviceController) GetDeviceHouseholds() {
 
 // 11. RemoveDeviceHouseholdAssociation 解除设备与户号的关联
 // @Summary 解除设备与户号的关联
-// @Description 解除指定设备与户号的关联
+// @Description 解除指定设备与其当前关联的户号的关联
 // @Tags device
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path int true "设备ID"
-// @Param household_id path int true "户号ID"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} ErrorResponse
 // @Failure 404 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
-// @Router /devices/{id}/households/{household_id} [delete]
+// @Router /devices/{id}/households [delete]
 func (c *DeviceController) RemoveDeviceHouseholdAssociation() {
 	// 获取设备ID
 	id := c.Ctx.Param("id")
@@ -857,21 +867,9 @@ func (c *DeviceController) RemoveDeviceHouseholdAssociation() {
 		return
 	}
 
-	// 获取户号ID
-	householdIDStr := c.Ctx.Param("household_id")
-	householdID, err := strconv.Atoi(householdIDStr)
-	if err != nil {
-		c.Ctx.JSON(http.StatusBadRequest, gin.H{
-			"code":    400,
-			"message": "无效的户号ID",
-			"data":    nil,
-		})
-		return
-	}
-
 	// 验证设备是否存在
 	deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
-	_, err = deviceService.GetDeviceByID(uint(deviceID))
+	device, err := deviceService.GetDeviceByID(uint(deviceID))
 	if err != nil {
 		c.Ctx.JSON(http.StatusNotFound, gin.H{
 			"code":    404,
@@ -881,9 +879,19 @@ func (c *DeviceController) RemoveDeviceHouseholdAssociation() {
 		return
 	}
 
+	// 检查设备是否关联了户号
+	if device.HouseholdID == 0 {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "设备未关联任何户号",
+			"data":    nil,
+		})
+		return
+	}
+
 	// 解除设备与户号的关联
 	householdService := c.Container.GetService("household").(services.InterfaceHouseholdService)
-	if err := householdService.RemoveHouseholdDeviceAssociation(uint(householdID), uint(deviceID)); err != nil {
+	if err := householdService.RemoveHouseholdDeviceAssociation(device.HouseholdID, uint(deviceID)); err != nil {
 		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "解除设备与户号关联失败: " + err.Error(),

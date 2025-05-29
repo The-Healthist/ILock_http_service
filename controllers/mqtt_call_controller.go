@@ -39,11 +39,9 @@ func NewMQTTCallController(ctx *gin.Context, container *container.ServiceContain
 type (
 	// InitiateCallRequest 发起通话请求
 	InitiateCallRequest struct {
-		DeviceID      string `json:"device_device_id" binding:"required" example:"1"` // 使用与MQTT通讯中相同的字段名
-		HouseholdID   string `json:"household_id,omitempty" example:"1"`              // 可选，指定户号ID
-		TargetUserID  string `json:"target_resident_id,omitempty"`                    // 可选，如不提供则会通知所有关联的居民
-		ResidentPhone string `json:"resident_phone,omitempty" example:"13800138000"`  // 可选，通过住户电话呼叫
-		Timestamp     int64  `json:"timestamp,omitempty" example:"1651234567890"`     // 可选时间戳
+		DeviceID        string `json:"device_id" binding:"required" example:"1"`    // 设备ID
+		HouseholdNumber string `json:"household_number,omitempty" example:"101"`    // 可选，指定户号
+		Timestamp       int64  `json:"timestamp,omitempty" example:"1651234567890"` // 可选时间戳
 	}
 
 	// CallActionRequest 通话控制请求
@@ -102,7 +100,7 @@ type (
 	// InitiateCallResponse 发起通话响应
 	InitiateCallResponse struct {
 		CallID            string    `json:"call_id" example:"call-20250510-abcdef123456"`
-		DeviceID          string    `json:"device_device_id" example:"1"`
+		DeviceID          string    `json:"device_id" example:"1"`
 		TargetResidentIDs []string  `json:"target_resident_ids" example:"[\"2\",\"3\"]"`
 		CallInfo          *CallInfo `json:"call_info,omitempty"`
 		TencentRTC        *TRTCInfo `json:"tencen_rtc,omitempty"`
@@ -150,11 +148,11 @@ func HandleMQTTCallFunc(container *container.ServiceContainer, method string) gi
 
 // 1. InitiateCall 发起通话
 // @Summary      发起MQTT通话
-// @Description  通过MQTT向设备或住户发起视频通话请求，支持三种调用方式：1.通过住户电话呼叫；2.通过指定户号呼叫；3.通过设备关联的户号呼叫
+// @Description  通过MQTT向设备关联的住户发起视频通话请求。如果提供了household_number参数，则呼叫该户号下的所有住户；如果未提供，则呼叫该设备绑定的户号下的所有住户。
 // @Tags         MQTT
 // @Accept       json
 // @Produce      json
-// @Param        request body InitiateCallRequest true "通话请求参数：支持device_device_id(必填)、household_id(可选)、target_resident_id(可选)、resident_phone(可选)参数"
+// @Param        request body InitiateCallRequest true "通话请求参数：支持device_id(必填)、household_number(可选)、timestamp(可选)参数"
 // @Success      200  {object}  InitiateCallResponse
 // @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -172,18 +170,9 @@ func (c *MQTTCallController) InitiateCall() {
 	var err error
 	var targetResidentIDs []string
 
-	// 如果提供了住户电话，通过电话查找并呼叫该住户
-	if req.ResidentPhone != "" {
-		callID, targetResidentIDs, err = mqttCallService.InitiateCallByPhone(req.DeviceID, req.ResidentPhone)
-	} else if req.TargetUserID != "" {
-		// 如果提供了特定的目标居民ID，就只向该居民发起呼叫
-		callID, err = mqttCallService.InitiateCall(req.DeviceID, req.TargetUserID)
-		if err == nil {
-			targetResidentIDs = []string{req.TargetUserID}
-		}
-	} else if req.HouseholdID != "" {
-		// 如果提供了户号ID，向该户号下的所有居民发起呼叫
-		callID, targetResidentIDs, err = mqttCallService.InitiateCallToHousehold(req.DeviceID, req.HouseholdID)
+	if req.HouseholdNumber != "" {
+		// 如果提供了户号，向该户号下的所有居民发起呼叫
+		callID, targetResidentIDs, err = mqttCallService.InitiateCallToHousehold(req.DeviceID, req.HouseholdNumber)
 	} else {
 		// 否则，向关联该设备的户号下的所有居民发起呼叫
 		callID, targetResidentIDs, err = mqttCallService.InitiateCallToAll(req.DeviceID)

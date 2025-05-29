@@ -35,18 +35,18 @@ func NewResidentController(ctx *gin.Context, container *container.ServiceContain
 
 // ResidentRequest 表示居民请求
 type ResidentRequest struct {
-	Name     string `json:"name" binding:"required" example:"张三"`
-	Email    string `json:"email" binding:"omitempty,email" example:"zhangsan@resident.com"`
-	Phone    string `json:"phone" binding:"required" example:"13812345678"`
-	DeviceID uint   `json:"device_id" binding:"required" example:"101"`
+	Name        string `json:"name" binding:"required" example:"张三"`
+	Email       string `json:"email" binding:"omitempty,email" example:"zhangsan@resident.com"`
+	Phone       string `json:"phone" binding:"required" example:"13812345678"`
+	HouseholdID uint   `json:"household_id" binding:"required" example:"1"` // 必填，关联的户号ID
 }
 
 // UpdateResidentRequest 表示更新居民请求
 type UpdateResidentRequest struct {
-	Name     string `json:"name" example:"李四"`
-	Email    string `json:"email" binding:"omitempty,email" example:"lisi@resident.com"`
-	Phone    string `json:"phone" example:"13987654321"`
-	DeviceID uint   `json:"device_id" example:"102"`
+	Name        string `json:"name" example:"李四"`
+	Email       string `json:"email" binding:"omitempty,email" example:"lisi@resident.com"`
+	Phone       string `json:"phone" example:"13987654321"`
+	HouseholdID *uint  `json:"household_id" example:"1"` // 可选，关联的户号ID，使用指针允许设置为null
 }
 
 // GetResidents 获取所有居民
@@ -161,14 +161,14 @@ func (c *ResidentController) GetResident() {
 
 // CreateResident 创建新居民
 // @Summary      创建居民
-// @Description  创建新的居民账户，需要关联到特定设备
+// @Description  创建新的居民账户，需要关联到特定户号
 // @Tags         Resident
 // @Accept       json
 // @Produce      json
-// @Param        request body ResidentRequest true "居民信息 - 姓名、电话和设备ID为必填，邮箱可选"
+// @Param        request body ResidentRequest true "居民信息 - 姓名、电话和户号ID为必填，邮箱可选"
 // @Security     BearerAuth
 // @Success      201  {object}  map[string]interface{} "成功响应，包含创建的居民详情"
-// @Failure      400  {object}  ErrorResponse "请求错误，设备不存在或电话号码已被使用"
+// @Failure      400  {object}  ErrorResponse "请求错误，户号不存在或电话号码已被使用"
 // @Failure      500  {object}  ErrorResponse "服务器错误"
 // @Router       /residents [post]
 func (c *ResidentController) CreateResident() {
@@ -184,17 +184,17 @@ func (c *ResidentController) CreateResident() {
 
 	// 创建居民对象
 	resident := &models.Resident{
-		Name:     req.Name,
-		Email:    req.Email,
-		Phone:    req.Phone,
-		DeviceID: req.DeviceID,
+		Name:        req.Name,
+		Email:       req.Email,
+		Phone:       req.Phone,
+		HouseholdID: req.HouseholdID,
 		// 密码将在 ResidentService 中处理
 	}
 
 	// 使用 ResidentService 创建居民
 	residentService := c.Container.GetService("resident").(services.InterfaceResidentService)
 	if err := residentService.CreateResident(resident); err != nil {
-		if err.Error() == "手机号已被使用" || err.Error() == "设备不存在" {
+		if err.Error() == "手机号已被使用" || err.Error() == "户号不存在" {
 			c.Ctx.JSON(http.StatusBadRequest, gin.H{
 				"code":    400,
 				"message": err.Error(),
@@ -273,8 +273,8 @@ func (c *ResidentController) UpdateResident() {
 	if req.Phone != "" {
 		updates["phone"] = req.Phone
 	}
-	if req.DeviceID != 0 {
-		updates["device_id"] = req.DeviceID
+	if req.HouseholdID != nil {
+		updates["household_id"] = *req.HouseholdID
 	}
 
 	// 使用 ResidentService 更新居民
@@ -289,7 +289,7 @@ func (c *ResidentController) UpdateResident() {
 			})
 			return
 		}
-		if err.Error() == "手机号已被使用" || err.Error() == "设备不存在" {
+		if err.Error() == "手机号已被使用" || err.Error() == "户号不存在" {
 			c.Ctx.JSON(http.StatusBadRequest, gin.H{
 				"code":    400,
 				"message": err.Error(),

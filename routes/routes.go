@@ -110,18 +110,19 @@ func registerAuthenticatedRoutes(
 	auth.Group("/admin").DELETE("/:id", controllers.HandleAdminFunc(container, "deleteAdmin"))
 
 	// 设备路由
-	auth.Group("/devices").GET("", controllers.HandleDeviceFunc(container, "getDevices"))
-	auth.Group("/devices").GET("/:id", controllers.HandleDeviceFunc(container, "getDevice"))
-	auth.Group("/devices").POST("", controllers.HandleDeviceFunc(container, "createDevice"))
-	auth.Group("/devices").PUT("/:id", controllers.HandleDeviceFunc(container, "updateDevice"))
-	auth.Group("/devices").DELETE("/:id", controllers.HandleDeviceFunc(container, "deleteDevice"))
-	auth.Group("/devices").GET("/:id/status", controllers.HandleDeviceFunc(container, "getDeviceStatus"))
-	// 设备与楼号关联
-	auth.Group("/devices").POST("/:id/building", controllers.HandleDeviceFunc(container, "associateDeviceWithBuilding"))
-	// 设备与户号关联
-	auth.Group("/devices").GET("/:id/households", controllers.HandleDeviceFunc(container, "getDeviceHouseholds"))
-	auth.Group("/devices").POST("/:id/households", controllers.HandleDeviceFunc(container, "associateDeviceWithHousehold"))
-	auth.Group("/devices").DELETE("/:id/households/:household_id", controllers.HandleDeviceFunc(container, "removeDeviceHouseholdAssociation"))
+	devicesGroup := auth.Group("/devices")
+	{
+		devicesGroup.GET("", controllers.HandleDeviceFunc(container, "getDevices"))
+		devicesGroup.GET("/:id", controllers.HandleDeviceFunc(container, "getDevice"))
+		devicesGroup.POST("", controllers.HandleDeviceFunc(container, "createDevice"))
+		devicesGroup.PUT("/:id", controllers.HandleDeviceFunc(container, "updateDevice"))
+		devicesGroup.DELETE("/:id", controllers.HandleDeviceFunc(container, "deleteDevice"))
+		devicesGroup.GET("/:id/status", controllers.HandleDeviceFunc(container, "getDeviceStatus"))
+		devicesGroup.POST("/:id/building", controllers.HandleDeviceFunc(container, "associateDeviceWithBuilding"))
+		devicesGroup.GET("/:id/households", controllers.HandleDeviceFunc(container, "getDeviceHouseholds"))
+		devicesGroup.POST("/:id/households", controllers.HandleDeviceFunc(container, "associateDeviceWithHousehold"))
+		devicesGroup.DELETE("/:id/households", controllers.HandleDeviceFunc(container, "removeDeviceHouseholdAssociation"))
+	}
 
 	// 居民路由
 	auth.Group("/residents").GET("", controllers.HandleResidentFunc(container, "getResidents"))

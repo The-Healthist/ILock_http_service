@@ -163,9 +163,13 @@ func (s *HouseholdService) DeleteHousehold(id uint) error {
 		return errors.New("该户号下存在居民，无法删除")
 	}
 
-	// 删除户号与设备的关联关系
-	if err := s.DB.Exec("DELETE FROM household_device_relations WHERE household_id = ?", id).Error; err != nil {
+	// 检查是否有关联的设备
+	var deviceCount int64
+	if err := s.DB.Model(&models.Device{}).Where("household_id = ?", id).Count(&deviceCount).Error; err != nil {
 		return err
+	}
+	if deviceCount > 0 {
+		return errors.New("该户号下存在关联设备，请先解除关联")
 	}
 
 	return s.DB.Delete(household).Error
@@ -174,13 +178,13 @@ func (s *HouseholdService) DeleteHousehold(id uint) error {
 // 7. GetHouseholdDevices 获取户号关联的设备
 func (s *HouseholdService) GetHouseholdDevices(householdID uint) ([]models.Device, error) {
 	// 检查户号是否存在
-	household, err := s.GetHouseholdByID(householdID)
-	if err != nil {
+	if _, err := s.GetHouseholdByID(householdID); err != nil {
 		return nil, err
 	}
 
+	// 查询household_id为指定值的设备
 	var devices []models.Device
-	if err := s.DB.Model(household).Association("Devices").Find(&devices); err != nil {
+	if err := s.DB.Where("household_id = ?", householdID).Find(&devices).Error; err != nil {
 		return nil, err
 	}
 
@@ -202,11 +206,10 @@ func (s *HouseholdService) GetHouseholdResidents(householdID uint) ([]models.Res
 	return residents, nil
 }
 
-// 9. AssociateHouseholdWithDevice 将户号关联到设备
+// 9. AssociateHouseholdWithDevice 关联户号与设备
 func (s *HouseholdService) AssociateHouseholdWithDevice(householdID, deviceID uint) error {
 	// 检查户号是否存在
-	household, err := s.GetHouseholdByID(householdID)
-	if err != nil {
+	if _, err := s.GetHouseholdByID(householdID); err != nil {
 		return err
 	}
 
@@ -219,24 +222,18 @@ func (s *HouseholdService) AssociateHouseholdWithDevice(householdID, deviceID ui
 		return err
 	}
 
-	// 检查关联是否已存在
-	var count int64
-	if err := s.DB.Table("household_device_relations").Where("household_id = ? AND device_id = ?", householdID, deviceID).Count(&count).Error; err != nil {
+	// 直接更新设备的household_id字段
+	if err := s.DB.Model(&device).Update("household_id", householdID).Error; err != nil {
 		return err
 	}
-	if count > 0 {
-		return errors.New("户号与设备已关联")
-	}
 
-	// 添加关联
-	return s.DB.Model(household).Association("Devices").Append(&device)
+	return nil
 }
 
 // 10. RemoveHouseholdDeviceAssociation 解除户号与设备的关联
 func (s *HouseholdService) RemoveHouseholdDeviceAssociation(householdID, deviceID uint) error {
 	// 检查户号是否存在
-	household, err := s.GetHouseholdByID(householdID)
-	if err != nil {
+	if _, err := s.GetHouseholdByID(householdID); err != nil {
 		return err
 	}
 
@@ -249,15 +246,15 @@ func (s *HouseholdService) RemoveHouseholdDeviceAssociation(householdID, deviceI
 		return err
 	}
 
-	// 检查关联是否存在
-	var count int64
-	if err := s.DB.Table("household_device_relations").Where("household_id = ? AND device_id = ?", householdID, deviceID).Count(&count).Error; err != nil {
-		return err
-	}
-	if count == 0 {
-		return errors.New("户号与设备未关联")
+	// 检查设备是否属于该户号
+	if device.HouseholdID != householdID {
+		return errors.New("该设备不属于此户号")
 	}
 
-	// 移除关联
-	return s.DB.Model(household).Association("Devices").Delete(&device)
+	// 将设备的household_id设为NULL，表示解除关联
+	if err := s.DB.Model(&device).Update("household_id", nil).Error; err != nil {
+		return err
+	}
+
+	return nil
 }

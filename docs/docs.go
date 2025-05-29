@@ -1748,16 +1748,14 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/devices/{id}/households/{household_id}": {
+            },
             "delete": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "解除指定设备与户号的关联",
+                "description": "解除指定设备与其当前关联的户号的关联",
                 "consumes": [
                     "application/json"
                 ],
@@ -1773,13 +1771,6 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "设备ID",
                         "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "户号ID",
-                        "name": "household_id",
                         "in": "path",
                         "required": true
                     }
@@ -2572,7 +2563,7 @@ const docTemplate = `{
         },
         "/mqtt/call": {
             "post": {
-                "description": "通过MQTT向设备或住户发起视频通话请求，支持三种调用方式：1.通过住户电话呼叫；2.通过指定户号呼叫；3.通过设备关联的户号呼叫",
+                "description": "通过MQTT向设备关联的住户发起视频通话请求。如果提供了household_number参数，则呼叫该户号下的所有住户；如果未提供，则呼叫该设备绑定的户号下的所有住户。",
                 "consumes": [
                     "application/json"
                 ],
@@ -2585,7 +2576,7 @@ const docTemplate = `{
                 "summary": "发起MQTT通话",
                 "parameters": [
                     {
-                        "description": "通话请求参数：支持device_device_id(必填)、household_id(可选)、target_resident_id(可选)、resident_phone(可选)参数",
+                        "description": "通话请求参数：支持device_id(必填)、household_number(可选)、timestamp(可选)参数",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -2961,7 +2952,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "创建新的居民账户，需要关联到特定设备",
+                "description": "创建新的居民账户，需要关联到特定户号",
                 "consumes": [
                     "application/json"
                 ],
@@ -2974,7 +2965,7 @@ const docTemplate = `{
                 "summary": "创建居民",
                 "parameters": [
                     {
-                        "description": "居民信息 - 姓名、电话和设备ID为必填，邮箱可选",
+                        "description": "居民信息 - 姓名、电话和户号ID为必填，邮箱可选",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -2992,7 +2983,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "请求错误，设备不存在或电话号码已被使用",
+                        "description": "请求错误，户号不存在或电话号码已被使用",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
@@ -3899,7 +3890,7 @@ const docTemplate = `{
                     "example": "SN12345678"
                 },
                 "staff_ids": {
-                    "description": "关联的物业员工ID列表",
+                    "description": "关联的物业员工ID列表(可选)",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -4084,27 +4075,18 @@ const docTemplate = `{
         "controllers.InitiateCallRequest": {
             "type": "object",
             "required": [
-                "device_device_id"
+                "device_id"
             ],
             "properties": {
-                "device_device_id": {
-                    "description": "使用与MQTT通讯中相同的字段名",
+                "device_id": {
+                    "description": "设备ID",
                     "type": "string",
                     "example": "1"
                 },
-                "household_id": {
-                    "description": "可选，指定户号ID",
+                "household_number": {
+                    "description": "可选，指定户号",
                     "type": "string",
-                    "example": "1"
-                },
-                "resident_phone": {
-                    "description": "可选，通过住户电话呼叫",
-                    "type": "string",
-                    "example": "13800138000"
-                },
-                "target_resident_id": {
-                    "description": "可选，如不提供则会通知所有关联的居民",
-                    "type": "string"
+                    "example": "101"
                 },
                 "timestamp": {
                     "description": "可选时间戳",
@@ -4123,7 +4105,7 @@ const docTemplate = `{
                 "call_info": {
                     "$ref": "#/definitions/controllers.CallInfo"
                 },
-                "device_device_id": {
+                "device_id": {
                     "type": "string",
                     "example": "1"
                 },
@@ -4259,18 +4241,19 @@ const docTemplate = `{
         "controllers.ResidentRequest": {
             "type": "object",
             "required": [
-                "device_id",
+                "household_id",
                 "name",
                 "phone"
             ],
             "properties": {
-                "device_id": {
-                    "type": "integer",
-                    "example": 101
-                },
                 "email": {
                     "type": "string",
                     "example": "zhangsan@resident.com"
+                },
+                "household_id": {
+                    "description": "必填，关联的户号ID",
+                    "type": "integer",
+                    "example": 1
                 },
                 "name": {
                     "type": "string",
@@ -4359,13 +4342,14 @@ const docTemplate = `{
         "controllers.UpdateResidentRequest": {
             "type": "object",
             "properties": {
-                "device_id": {
-                    "type": "integer",
-                    "example": 102
-                },
                 "email": {
                     "type": "string",
                     "example": "lisi@resident.com"
+                },
+                "household_id": {
+                    "description": "可选，关联的户号ID，使用指针允许设置为null",
+                    "type": "integer",
+                    "example": 1
                 },
                 "name": {
                     "type": "string",
@@ -4652,13 +4636,6 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "residents": {
-                    "description": "关联的居民（一对多）",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.Resident"
-                    }
-                },
                 "serial_number": {
                     "type": "string"
                 },
@@ -4849,18 +4826,6 @@ const docTemplate = `{
                 "created_at": {
                     "type": "string"
                 },
-                "device": {
-                    "description": "Relations",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.Device"
-                        }
-                    ]
-                },
-                "device_id": {
-                    "description": "关联的设备ID",
-                    "type": "integer"
-                },
                 "email": {
                     "type": "string"
                 },
@@ -4871,7 +4836,7 @@ const docTemplate = `{
                     }
                 },
                 "household": {
-                    "description": "所属户号",
+                    "description": "Relations",
                     "allOf": [
                         {
                             "$ref": "#/definitions/models.Household"

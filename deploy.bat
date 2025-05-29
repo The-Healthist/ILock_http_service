@@ -37,9 +37,18 @@ docker push %DOCKER_USERNAME%/ilock-http-service:%VERSION%
 echo Pushing latest Docker image to Docker Hub...
 docker push %DOCKER_USERNAME%/ilock-http-service:latest
 
-REM 更新本地docker-compose.yml文件中的版本号
-echo Updating version in docker-compose.yml...
-powershell -Command "(Get-Content docker-compose.yml) -replace 'stonesea/ilock-http-service:[^\"]*', 'stonesea/ilock-http-service:%VERSION%' | Set-Content docker-compose.yml"
+REM 更新docker-compose.yml中的版本号
+echo Updating docker-compose.yml with version %VERSION%...
+type docker-compose.yml | findstr /v "image: stonesea/ilock-http-service" > docker-compose.tmp
+for /f "tokens=1* delims=:" %%a in ('findstr /n "^" docker-compose.yml') do (
+    if %%a equ 3 (
+        echo     image: stonesea/ilock-http-service:%VERSION% >> docker-compose.new
+    ) else (
+        echo.%%b >> docker-compose.new
+    )
+)
+move /y docker-compose.new docker-compose.yml
+del docker-compose.tmp
 
 REM Copy files to server using scp
 echo Copying deployment files to server...

@@ -208,7 +208,7 @@ definitions:
         example: SN12345678
         type: string
       staff_ids:
-        description: 关联的物业员工ID列表
+        description: 关联的物业员工ID列表(可选)
         example:
         - 1
         - 2
@@ -345,27 +345,20 @@ definitions:
     type: object
   controllers.InitiateCallRequest:
     properties:
-      device_device_id:
-        description: 使用与MQTT通讯中相同的字段名
+      device_id:
+        description: 设备ID
         example: "1"
         type: string
-      household_id:
-        description: 可选，指定户号ID
-        example: "1"
-        type: string
-      resident_phone:
-        description: 可选，通过住户电话呼叫
-        example: "13800138000"
-        type: string
-      target_resident_id:
-        description: 可选，如不提供则会通知所有关联的居民
+      household_number:
+        description: 可选，指定户号
+        example: "101"
         type: string
       timestamp:
         description: 可选时间戳
         example: 1651234567890
         type: integer
     required:
-    - device_device_id
+    - device_id
     type: object
   controllers.InitiateCallResponse:
     properties:
@@ -374,7 +367,7 @@ definitions:
         type: string
       call_info:
         $ref: '#/definitions/controllers.CallInfo'
-      device_device_id:
+      device_id:
         example: "1"
         type: string
       target_resident_ids:
@@ -471,12 +464,13 @@ definitions:
     type: object
   controllers.ResidentRequest:
     properties:
-      device_id:
-        example: 101
-        type: integer
       email:
         example: zhangsan@resident.com
         type: string
+      household_id:
+        description: 必填，关联的户号ID
+        example: 1
+        type: integer
       name:
         example: 张三
         type: string
@@ -484,7 +478,7 @@ definitions:
         example: "13812345678"
         type: string
     required:
-    - device_id
+    - household_id
     - name
     - phone
     type: object
@@ -542,12 +536,13 @@ definitions:
     type: object
   controllers.UpdateResidentRequest:
     properties:
-      device_id:
-        example: 102
-        type: integer
       email:
         example: lisi@resident.com
         type: string
+      household_id:
+        description: 可选，关联的户号ID，使用指针允许设置为null
+        example: 1
+        type: integer
       name:
         example: 李四
         type: string
@@ -744,11 +739,6 @@ definitions:
         type: string
       name:
         type: string
-      residents:
-        description: 关联的居民（一对多）
-        items:
-          $ref: '#/definitions/models.Resident'
-        type: array
       serial_number:
         type: string
       staff:
@@ -878,13 +868,6 @@ definitions:
         type: array
       created_at:
         type: string
-      device:
-        allOf:
-        - $ref: '#/definitions/models.Device'
-        description: Relations
-      device_id:
-        description: 关联的设备ID
-        type: integer
       email:
         type: string
       emergency_logs:
@@ -894,7 +877,7 @@ definitions:
       household:
         allOf:
         - $ref: '#/definitions/models.Household'
-        description: 所属户号
+        description: Relations
       household_id:
         description: 关联的户号ID
         type: integer
@@ -1954,6 +1937,41 @@ paths:
       tags:
       - device
   /devices/{id}/households:
+    delete:
+      consumes:
+      - application/json
+      description: 解除指定设备与其当前关联的户号的关联
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 解除设备与户号的关联
+      tags:
+      - device
     get:
       consumes:
       - application/json
@@ -2028,47 +2046,6 @@ paths:
       security:
       - BearerAuth: []
       summary: 关联设备与户号
-      tags:
-      - device
-  /devices/{id}/households/{household_id}:
-    delete:
-      consumes:
-      - application/json
-      description: 解除指定设备与户号的关联
-      parameters:
-      - description: 设备ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: 户号ID
-        in: path
-        name: household_id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/controllers.ErrorResponse'
-      security:
-      - BearerAuth: []
-      summary: 解除设备与户号的关联
       tags:
       - device
   /devices/{id}/status:
@@ -2561,9 +2538,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: 通过MQTT向设备或住户发起视频通话请求，支持三种调用方式：1.通过住户电话呼叫；2.通过指定户号呼叫；3.通过设备关联的户号呼叫
+      description: 通过MQTT向设备关联的住户发起视频通话请求。如果提供了household_number参数，则呼叫该户号下的所有住户；如果未提供，则呼叫该设备绑定的户号下的所有住户。
       parameters:
-      - description: 通话请求参数：支持device_device_id(必填)、household_id(可选)、target_resident_id(可选)、resident_phone(可选)参数
+      - description: 通话请求参数：支持device_id(必填)、household_number(可选)、timestamp(可选)参数
         in: body
         name: request
         required: true
@@ -2813,9 +2790,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: 创建新的居民账户，需要关联到特定设备
+      description: 创建新的居民账户，需要关联到特定户号
       parameters:
-      - description: 居民信息 - 姓名、电话和设备ID为必填，邮箱可选
+      - description: 居民信息 - 姓名、电话和户号ID为必填，邮箱可选
         in: body
         name: request
         required: true
@@ -2830,7 +2807,7 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: 请求错误，设备不存在或电话号码已被使用
+          description: 请求错误，户号不存在或电话号码已被使用
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
         "500":

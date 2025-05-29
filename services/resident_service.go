@@ -67,13 +67,17 @@ func (s *ResidentService) CreateResident(resident *models.Resident) error {
 		return errors.New("手机号已被使用")
 	}
 
-	// 验证设备是否存在
-	var device models.Device
-	if err := s.DB.First(&device, resident.DeviceID).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.New("设备不存在")
+	// 验证户号是否存在
+	if resident.HouseholdID > 0 {
+		var household models.Household
+		if err := s.DB.First(&household, resident.HouseholdID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("户号不存在")
+			}
+			return err
 		}
-		return err
+	} else {
+		return errors.New("必须提供有效的户号ID")
 	}
 
 	return s.DB.Create(resident).Error
@@ -97,12 +101,12 @@ func (s *ResidentService) UpdateResident(id uint, updates map[string]interface{}
 		}
 	}
 
-	// 如果更新设备ID，需要验证设备是否存在
-	if deviceID, ok := updates["device_id"].(uint); ok && deviceID != resident.DeviceID {
-		var device models.Device
-		if err := s.DB.First(&device, deviceID).Error; err != nil {
+	// 如果更新户号ID，需要验证户号是否存在
+	if householdID, ok := updates["household_id"].(uint); ok {
+		var household models.Household
+		if err := s.DB.First(&household, householdID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, errors.New("设备不存在")
+				return nil, errors.New("户号不存在")
 			}
 			return nil, err
 		}

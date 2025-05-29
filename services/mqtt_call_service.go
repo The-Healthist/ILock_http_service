@@ -77,15 +77,15 @@ type (
 
 	// CallRequest 呼叫请求结构
 	CallRequest struct {
-		DeviceID     string `json:"device_device_id"`   // 呼叫方设备ID
+		DeviceID     string `json:"device_id"`          // 呼叫方设备ID
 		TargetUserID string `json:"target_resident_id"` // 目标用户ID
 		Timestamp    int64  `json:"timestamp"`          // 发起呼叫的Unix毫秒时间戳
 	}
 
 	// CallResponse 呼叫响应结构
 	CallResponse struct {
-		CallID       string   `json:"call_id"`          // 本次呼叫的唯一ID
-		DeviceID     string   `json:"device_device_id"` // 呼叫方设备ID
+		CallID       string   `json:"call_id"`   // 本次呼叫的唯一ID
+		DeviceID     string   `json:"device_id"` // 呼叫方设备ID
 		TargetUserID string   `json:"target_resident_id"`
 		Timestamp    int64    `json:"timestamp"`
 		TRTCInfo     TRTCInfo `json:"tencen_rtc"` // 腾讯云TRTC信息
@@ -112,7 +112,7 @@ type (
 	// IncomingCallNotification 来电通知
 	IncomingCallNotification struct {
 		CallID       string   `json:"call_id"`
-		DeviceID     string   `json:"device_device_id"`
+		DeviceID     string   `json:"device_id"` // 设备ID
 		TargetUserID string   `json:"target_resident_id"`
 		Timestamp    int64    `json:"timestamp"`
 		TRTCInfo     TRTCInfo `json:"tencen_rtc"`
