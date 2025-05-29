@@ -6,7 +6,7 @@ import (
 
 // EmergencyNotification 表示紧急通知信息
 type EmergencyNotification struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
+	BaseModel
 	Title      string    `gorm:"type:varchar(100);not null" json:"title"`
 	Content    string    `gorm:"type:text;not null" json:"content"`
 	Severity   string    `gorm:"type:varchar(10);not null" json:"severity"`    // 如：high(高)、medium(中)、low(低)
@@ -17,6 +17,4 @@ type EmergencyNotification struct {
 	SenderRole string    `gorm:"type:varchar(20)" json:"sender_role"`          // 发送者角色
 	PropertyID *uint     `json:"property_id,omitempty"`                        // 关联的物业ID，可以为空表示全局通知
 	IsPublic   bool      `gorm:"default:false" json:"is_public"`               // 是否为公开通知
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
 }

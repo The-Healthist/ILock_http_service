@@ -31,7 +31,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a list of all admin users with pagination",
+                "description": "分页获取所有管理员用户列表",
                 "consumes": [
                     "application/json"
                 ],
@@ -41,23 +41,23 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Get Admin List",
+                "summary": "获取管理员列表",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Page number, default is 1",
+                        "description": "页码, 默认为1",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Items per page, default is 10",
+                        "description": "每页条数, 默认为10",
                         "name": "page_size",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Search keyword for username, phone, etc.",
+                        "description": "搜索关键词(用户名、电话等)",
                         "name": "search",
                         "in": "query"
                     }
@@ -84,7 +84,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new admin user",
+                "description": "创建一个新的管理员用户",
                 "consumes": [
                     "application/json"
                 ],
@@ -94,10 +94,10 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Create Admin",
+                "summary": "创建管理员",
                 "parameters": [
                     {
-                        "description": "Admin information",
+                        "description": "管理员信息",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -136,7 +136,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get details of a specific admin by ID",
+                "description": "根据ID获取特定管理员的详细信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -146,11 +146,11 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Get Admin By ID",
+                "summary": "获取管理员详情",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Admin ID",
+                        "description": "管理员ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -190,7 +190,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update an existing admin user",
+                "description": "更新现有管理员用户的信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -200,17 +200,17 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Update Admin",
+                "summary": "更新管理员",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Admin ID",
+                        "description": "管理员ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Updated admin information",
+                        "description": "更新的管理员信息",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -253,7 +253,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete an admin user with the specified ID",
+                "description": "删除指定ID的管理员用户",
                 "consumes": [
                     "application/json"
                 ],
@@ -263,11 +263,11 @@ const docTemplate = `{
                 "tags": [
                     "Admin"
                 ],
-                "summary": "Delete Admin",
+                "summary": "删除管理员",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Admin ID",
+                        "description": "管理员ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -460,14 +460,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/calls": {
+        "/buildings": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a list of all call records in the system, with pagination",
+                "description": "获取系统中所有楼号的列表",
                 "consumes": [
                     "application/json"
                 ],
@@ -475,19 +475,19 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "CallRecord"
+                    "Building"
                 ],
-                "summary": "Get Call Records",
+                "summary": "获取所有楼号",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Page number, default is 1",
+                        "description": "页码，默认为1",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Items per page, default is 10",
+                        "description": "每页条数，默认为10",
                         "name": "page_size",
                         "in": "query"
                     }
@@ -507,243 +507,351 @@ const docTemplate = `{
                         }
                     }
                 }
-            }
-        },
-        "/calls/device/{deviceId}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get call records for a specific device, with pagination",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "CallRecord"
-                ],
-                "summary": "Get Device Call Records",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Device ID",
-                        "name": "deviceId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page number, default is 1",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Items per page, default is 10",
-                        "name": "page_size",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/calls/resident/{residentId}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get call records for a specific resident, with pagination",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "CallRecord"
-                ],
-                "summary": "Get Resident Call Records",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Resident ID",
-                        "name": "residentId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Page number, default is 1",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "description": "Items per page, default is 10",
-                        "name": "page_size",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/calls/statistics": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get call statistics including total, answered, missed, etc.",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "CallRecord"
-                ],
-                "summary": "Get Call Statistics",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/calls/{id}": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "description": "Get details of a specific call record by ID",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "CallRecord"
-                ],
-                "summary": "Get Call Record By ID",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "description": "Call Record ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/calls/{id}/feedback": {
+            },
             "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Submit quality feedback for a specific call record",
+                "description": "创建一个新的楼号",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Building"
+                ],
+                "summary": "创建楼号",
+                "parameters": [
+                    {
+                        "description": "楼号信息",
+                        "name": "building",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.BuildingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/buildings/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取楼号详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Building"
+                ],
+                "summary": "获取楼号详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "楼号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新楼号信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Building"
+                ],
+                "summary": "更新楼号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "楼号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "楼号信息",
+                        "name": "building",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.BuildingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除指定的楼号",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Building"
+                ],
+                "summary": "删除楼号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "楼号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/buildings/{id}/devices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定楼号关联的所有设备",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Building"
+                ],
+                "summary": "获取楼号关联的设备",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "楼号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/buildings/{id}/households": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定楼号下的所有户号",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Building"
+                ],
+                "summary": "获取楼号下的户号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "楼号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/call_records": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取系统中所有通话记录，支持分页",
                 "consumes": [
                     "application/json"
                 ],
@@ -753,17 +861,349 @@ const docTemplate = `{
                 "tags": [
                     "CallRecord"
                 ],
-                "summary": "Submit Call Feedback",
+                "summary": "获取通话记录列表",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Call Record ID",
+                        "description": "页码，默认为1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认为10",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/call_records/device/{deviceId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取特定设备的通话记录，支持分页",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CallRecord"
+                ],
+                "summary": "获取设备通话记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
+                        "name": "deviceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认为1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认为10",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/call_records/resident/{residentId}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取特定居民的通话记录，支持分页",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CallRecord"
+                ],
+                "summary": "获取居民通话记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "居民ID",
+                        "name": "residentId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "页码，默认为1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认为10",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/call_records/session": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "通过CallID（MQTT会话ID）获取特定通话记录的详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CallRecord"
+                ],
+                "summary": "通过CallID获取通话记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "通话会话ID（UUID）",
+                        "name": "call_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/call_records/statistics": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取通话统计信息，包括总数、已接、未接等",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CallRecord"
+                ],
+                "summary": "获取通话统计信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/call_records/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取特定通话记录的详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CallRecord"
+                ],
+                "summary": "获取通话记录详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "通话记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/call_records/{id}/feedback": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "为特定通话记录提交质量反馈",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CallRecord"
+                ],
+                "summary": "提交通话反馈",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "通话记录ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Feedback information",
+                        "description": "反馈信息",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -866,7 +1306,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "获取所有设备的列表",
+                "description": "获取所有设备的列表，支持按楼号筛选",
                 "consumes": [
                     "application/json"
                 ],
@@ -877,6 +1317,14 @@ const docTemplate = `{
                     "device"
                 ],
                 "summary": "获取所有设备",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "楼号ID",
+                        "name": "building_id",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -907,7 +1355,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "创建一个新的门禁设备",
+                "description": "创建一个新的门禁设备，支持设备类型和关联",
                 "consumes": [
                     "application/json"
                 ],
@@ -920,30 +1368,30 @@ const docTemplate = `{
                 "summary": "创建新设备",
                 "parameters": [
                     {
-                        "description": "设备信息",
+                        "description": "设备信息：包含名称、类型、位置、关联楼号/户号等",
                         "name": "device",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controllers.DeviceRequest"
+                            "$ref": "#/definitions/controllers.DeviceRequestInput"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Created",
+                        "description": "成功创建的设备信息",
                         "schema": {
                             "$ref": "#/definitions/models.Device"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "请求参数错误，如缺少必填字段或格式不正确",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误，可能是数据库操作失败等",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
@@ -1011,7 +1459,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "根据ID更新设备信息",
+                "description": "根据ID更新设备信息，支持更新关联",
                 "consumes": [
                     "application/json"
                 ],
@@ -1031,36 +1479,36 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "设备信息",
+                        "description": "设备信息：包含需要更新的字段",
                         "name": "device",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controllers.DeviceRequest"
+                            "$ref": "#/definitions/controllers.DeviceRequestInput"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "更新后的设备信息",
                         "schema": {
                             "$ref": "#/definitions/models.Device"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "请求参数错误",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "404": {
-                        "description": "Not Found",
+                        "description": "设备不存在",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "服务器内部错误",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
@@ -1118,14 +1566,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/devices/{id}/status": {
-            "get": {
+        "/devices/{id}/building": {
+            "post": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get the current status of a device by ID",
+                "description": "将指定设备关联到楼号",
                 "consumes": [
                     "application/json"
                 ],
@@ -1135,11 +1583,76 @@ const docTemplate = `{
                 "tags": [
                     "device"
                 ],
-                "summary": "Get Device Status",
+                "summary": "关联设备与楼号",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Device ID",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "楼号信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceBuildingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/households": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定设备关联的所有户号",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device"
+                ],
+                "summary": "获取设备关联的户号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1153,6 +1666,12 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -1161,6 +1680,182 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "将指定设备关联到户号",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device"
+                ],
+                "summary": "关联设备与户号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "户号信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.DeviceHouseholdRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/households/{household_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "解除指定设备与户号的关联",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device"
+                ],
+                "summary": "解除设备与户号的关联",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "户号ID",
+                        "name": "household_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/status": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取设备的当前状态信息，包括在线状态、最后更新时间等",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "device"
+                ],
+                "summary": "获取设备状态",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "设备状态信息，包含ID、名称、状态、位置、最后在线时间等",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "设备不存在",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器内部错误，可能是数据库查询失败等",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
@@ -1359,345 +2054,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/mqtt/call": {
-            "post": {
-                "description": "Start a new call via MQTT to all residents associated with the device",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT"
-                ],
-                "summary": "Initiate MQTT Call",
-                "parameters": [
-                    {
-                        "description": "Call initiation request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.InitiateCallRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.InitiateCallResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/mqtt/controller/device": {
-            "post": {
-                "description": "Process device side call actions (hangup, cancelled)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT"
-                ],
-                "summary": "Handle MQTT Caller Action",
-                "parameters": [
-                    {
-                        "description": "Device call action request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.CallActionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/mqtt/controller/resident": {
-            "post": {
-                "description": "Process resident side call actions (answered, rejected, hangup, timeout)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT"
-                ],
-                "summary": "Handle MQTT Callee Action",
-                "parameters": [
-                    {
-                        "description": "Resident call action request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.CallActionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/mqtt/device/status": {
-            "post": {
-                "description": "更新设备状态信息，包括在线状态、电池电量和其他自定义属性，无需MQTT连接",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Device"
-                ],
-                "summary": "Update Device Status",
-                "parameters": [
-                    {
-                        "description": "设备状态信息：包含设备ID、在线状态、电池电量等",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.PublishDeviceStatusRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/mqtt/end-session": {
-            "post": {
-                "description": "Forcefully end a call session and notify all parties",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT"
-                ],
-                "summary": "End MQTT Call Session",
-                "parameters": [
-                    {
-                        "description": "End call session request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.EndCallSessionRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/mqtt/session": {
-            "get": {
-                "description": "Retrieve call session information with TRTC details",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT"
-                ],
-                "summary": "Get MQTT Call Session",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Call session ID",
-                        "name": "call_id",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.CallSessionResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/mqtt/system/message": {
-            "post": {
-                "description": "Publish system message via MQTT",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "MQTT"
-                ],
-                "summary": "Publish System Message",
-                "parameters": [
-                    {
-                        "description": "System message information",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/controllers.PublishSystemMessageRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/residents": {
+        "/households": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a list of all residents in the system",
+                "description": "获取系统中所有户号的列表",
                 "consumes": [
                     "application/json"
                 ],
@@ -1705,21 +2069,35 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Resident"
+                    "Household"
                 ],
-                "summary": "Get Resident List",
+                "summary": "获取所有户号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "页码，默认为1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认为10",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "楼号ID，用于筛选特定楼号下的户号",
+                        "name": "building_id",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
@@ -1736,7 +2114,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new resident account, requiring association with a specific device",
+                "description": "创建一个新的户号，需要关联到楼号",
                 "consumes": [
                     "application/json"
                 ],
@@ -1744,36 +2122,36 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Resident"
+                    "Household"
                 ],
-                "summary": "Create Resident",
+                "summary": "创建户号",
                 "parameters": [
                     {
-                        "description": "Resident information - name, phone and device ID are required, email is optional",
-                        "name": "request",
+                        "description": "户号信息",
+                        "name": "household",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controllers.ResidentRequest"
+                            "$ref": "#/definitions/controllers.HouseholdRequest"
                         }
                     }
                 ],
                 "responses": {
                     "201": {
-                        "description": "Success response with created resident details",
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Bad request, device not found or phone number already in use",
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
                     },
                     "500": {
-                        "description": "Server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/controllers.ErrorResponse"
                         }
@@ -1781,14 +2159,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/residents/{id}": {
+        "/households/{id}": {
             "get": {
                 "security": [
                     {
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get details of a specific resident by ID",
+                "description": "根据ID获取户号详细信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -1796,13 +2174,13 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Resident"
+                    "Household"
                 ],
-                "summary": "Get Resident By ID",
+                "summary": "获取户号详情",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Resident ID",
+                        "description": "户号ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1842,7 +2220,695 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update details of a resident with the specified ID",
+                "description": "更新户号信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Household"
+                ],
+                "summary": "更新户号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "户号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "户号信息",
+                        "name": "household",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.HouseholdRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除指定的户号",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Household"
+                ],
+                "summary": "删除户号",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "户号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/households/{id}/devices": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定户号关联的所有设备",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Household"
+                ],
+                "summary": "获取户号关联的设备",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "户号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "将指定户号关联到设备",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Household"
+                ],
+                "summary": "关联户号与设备",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "户号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "设备信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.HouseholdDeviceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/households/{id}/devices/{device_id}": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "解除指定户号与设备的关联",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Household"
+                ],
+                "summary": "解除户号与设备的关联",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "户号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "设备ID",
+                        "name": "device_id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/households/{id}/residents": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取指定户号下的所有居民",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Household"
+                ],
+                "summary": "获取户号下的居民",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "户号ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/call": {
+            "post": {
+                "description": "通过MQTT向设备或住户发起视频通话请求，支持三种调用方式：1.通过住户电话呼叫；2.通过指定户号呼叫；3.通过设备关联的户号呼叫",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "发起MQTT通话",
+                "parameters": [
+                    {
+                        "description": "通话请求参数：支持device_device_id(必填)、household_id(可选)、target_resident_id(可选)、resident_phone(可选)参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.InitiateCallRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.InitiateCallResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/controller/device": {
+            "post": {
+                "description": "处理设备端通话动作，支持的动作类型包括：hangup(挂断)、cancelled(取消呼叫)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "处理MQTT呼叫方动作",
+                "parameters": [
+                    {
+                        "description": "设备通话动作请求，包含call_id和action字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/controller/resident": {
+            "post": {
+                "description": "处理居民端通话动作，支持的动作类型包括：rejected(拒绝)、answered(接听)、hangup(挂断)、timeout(超时)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "处理MQTT被呼叫方动作",
+                "parameters": [
+                    {
+                        "description": "居民通话动作请求，包含call_id、action和可选的reason字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallActionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/device/status": {
+            "post": {
+                "description": "更新设备状态信息，包括在线状态、电池电量和其他自定义属性，无需MQTT连接，系统会通过MQTT推送给相关订阅方",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Device"
+                ],
+                "summary": "更新设备状态",
+                "parameters": [
+                    {
+                        "description": "设备状态信息：必须包含device_id、online、battery字段，可选包含properties自定义属性",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.PublishDeviceStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/end-session": {
+            "post": {
+                "description": "强制结束通话会话并通知所有参与方，适用于系统管理或异常情况下的通话强制终止",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "结束MQTT通话会话",
+                "parameters": [
+                    {
+                        "description": "结束通话会话请求，包含call_id和可选的reason字段",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.EndCallSessionRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/session": {
+            "get": {
+                "description": "获取通话会话信息及TRTC房间详情，包括设备ID、住户ID、通话状态、开始时间等",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "获取MQTT通话会话",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "通话会话ID",
+                        "name": "call_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.CallSessionResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/mqtt/system/message": {
+            "post": {
+                "description": "通过MQTT发布系统消息，支持info、warning、error三种级别，消息会推送给所有订阅相关主题的客户端",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "MQTT"
+                ],
+                "summary": "发布系统消息",
+                "parameters": [
+                    {
+                        "description": "系统消息信息：必须包含type、level、message字段，level支持info、warning、error三种级别",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.PublishSystemMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/residents": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取系统中所有居民的列表",
                 "consumes": [
                     "application/json"
                 ],
@@ -1852,17 +2918,176 @@ const docTemplate = `{
                 "tags": [
                     "Resident"
                 ],
-                "summary": "Update Resident",
+                "summary": "获取居民列表",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Resident ID",
+                        "description": "页码，默认为1",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "每页条数，默认为10",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新的居民账户，需要关联到特定设备",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Resident"
+                ],
+                "summary": "创建居民",
+                "parameters": [
+                    {
+                        "description": "居民信息 - 姓名、电话和设备ID为必填，邮箱可选",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ResidentRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "成功响应，包含创建的居民详情",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "请求错误，设备不存在或电话号码已被使用",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "服务器错误",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/residents/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取特定居民的详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Resident"
+                ],
+                "summary": "获取居民详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "居民ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controllers.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新现有居民的信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Resident"
+                ],
+                "summary": "更新居民",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "居民ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Updated resident information",
+                        "description": "更新的居民信息",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -1905,7 +3130,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a resident with the specified ID",
+                "description": "删除指定ID的居民",
                 "consumes": [
                     "application/json"
                 ],
@@ -1915,11 +3140,11 @@ const docTemplate = `{
                 "tags": [
                     "Resident"
                 ],
-                "summary": "Delete Resident",
+                "summary": "删除居民",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Resident ID",
+                        "description": "居民ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -1961,7 +3186,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a list of all property staff members, with pagination and search support",
+                "description": "获取所有物业员工的列表，支持分页和搜索",
                 "consumes": [
                     "application/json"
                 ],
@@ -1971,23 +3196,23 @@ const docTemplate = `{
                 "tags": [
                     "Staff"
                 ],
-                "summary": "Get Property Staff List",
+                "summary": "获取物业员工列表",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Page number, default is 1",
+                        "description": "页码，默认为1",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Items per page, default is 10",
+                        "description": "每页条数，默认为10",
                         "name": "page_size",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Search keyword for name, phone, etc.",
+                        "description": "搜索关键词(姓名、电话等)",
                         "name": "search",
                         "in": "query"
                     }
@@ -2014,7 +3239,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Create a new property staff member",
+                "description": "创建一个新的物业员工",
                 "consumes": [
                     "application/json"
                 ],
@@ -2024,10 +3249,10 @@ const docTemplate = `{
                 "tags": [
                     "Staff"
                 ],
-                "summary": "Create Property Staff",
+                "summary": "创建物业员工",
                 "parameters": [
                     {
-                        "description": "Property staff information",
+                        "description": "物业员工信息",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -2066,7 +3291,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get a list of all property staff members with their associated devices",
+                "description": "获取所有物业员工的列表及其关联的设备信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -2076,23 +3301,23 @@ const docTemplate = `{
                 "tags": [
                     "Staff"
                 ],
-                "summary": "Get Property Staff List With Devices",
+                "summary": "获取带设备信息的物业员工列表",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Page number, default is 1",
+                        "description": "页码，默认为1",
                         "name": "page",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "Items per page, default is 10",
+                        "description": "每页条数，默认为10",
                         "name": "page_size",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "Search keyword for name, phone, etc.",
+                        "description": "搜索关键词(姓名、电话等)",
                         "name": "search",
                         "in": "query"
                     }
@@ -2121,7 +3346,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Get details of a specific property staff member by ID",
+                "description": "根据ID获取特定物业员工的详细信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -2131,11 +3356,11 @@ const docTemplate = `{
                 "tags": [
                     "Staff"
                 ],
-                "summary": "Get Property Staff By ID",
+                "summary": "获取物业员工详情",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Property Staff ID",
+                        "description": "物业员工ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2175,7 +3400,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Update an existing property staff member",
+                "description": "更新现有物业员工的信息",
                 "consumes": [
                     "application/json"
                 ],
@@ -2185,17 +3410,17 @@ const docTemplate = `{
                 "tags": [
                     "Staff"
                 ],
-                "summary": "Update Property Staff",
+                "summary": "更新物业员工",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Property Staff ID",
+                        "description": "物业员工ID",
                         "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "Updated property staff information",
+                        "description": "更新的物业员工信息",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -2238,7 +3463,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "Delete a property staff member with the specified ID",
+                "description": "删除指定ID的物业员工",
                 "consumes": [
                     "application/json"
                 ],
@@ -2248,11 +3473,11 @@ const docTemplate = `{
                 "tags": [
                     "Staff"
                 ],
-                "summary": "Delete Property Staff",
+                "summary": "删除物业员工",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "Property Staff ID",
+                        "description": "物业员工ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -2383,21 +3608,40 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "controllers.BuildingRequest": {
+            "type": "object",
+            "required": [
+                "building_code",
+                "building_name"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "小区东南角"
+                },
+                "building_code": {
+                    "type": "string",
+                    "example": "B001"
+                },
+                "building_name": {
+                    "type": "string",
+                    "example": "1号楼"
+                },
+                "status": {
+                    "description": "active, inactive",
+                    "type": "string",
+                    "example": "active"
+                }
+            }
+        },
         "controllers.CallActionRequest": {
             "type": "object",
             "required": [
-                "action",
-                "call_id"
+                "call_info"
             ],
             "properties": {
-                "action": {
-                    "type": "string"
-                },
-                "call_id": {
-                    "type": "string"
-                },
-                "reason": {
-                    "type": "string"
+                "call_info": {
+                    "$ref": "#/definitions/controllers.CallInfo"
                 }
             }
         },
@@ -2430,16 +3674,20 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "action": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "answered"
                 },
                 "call_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "call-20250510-abcdef123456"
                 },
                 "reason": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "user_busy"
                 },
                 "timestamp": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1651234567890
                 }
             }
         },
@@ -2462,22 +3710,28 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "call_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "call-20250510-abcdef123456"
                 },
                 "device_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "1"
                 },
                 "last_activity": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2025-05-10T15:09:10Z"
                 },
                 "resident_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2"
                 },
                 "start_time": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "2025-05-10T15:04:05Z"
                 },
                 "status": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "connected"
                 },
                 "tencen_rtc": {
                     "$ref": "#/definitions/controllers.TRTCInfo"
@@ -2512,7 +3766,78 @@ const docTemplate = `{
             }
         },
         "controllers.CreateStaffRequest": {
-            "type": "object"
+            "type": "object",
+            "required": [
+                "password",
+                "phone",
+                "role",
+                "username"
+            ],
+            "properties": {
+                "device_ids": {
+                    "description": "关联的设备ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        1,
+                        2,
+                        3
+                    ]
+                },
+                "name": {
+                    "description": "注意: 已从模型中移除，但保留请求结构以兼容前端",
+                    "type": "string",
+                    "example": "王物业"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "Property@123"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "13700001234"
+                },
+                "position": {
+                    "type": "string",
+                    "example": "物业经理"
+                },
+                "property_name": {
+                    "type": "string",
+                    "example": "阳光花园小区"
+                },
+                "remark": {
+                    "type": "string",
+                    "example": "负责A区日常管理工作"
+                },
+                "role": {
+                    "description": "可选值: manager, staff, security",
+                    "type": "string",
+                    "example": "manager"
+                },
+                "status": {
+                    "description": "可选值: active, inactive, suspended",
+                    "type": "string",
+                    "example": "active"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "wangwuye"
+                }
+            }
+        },
+        "controllers.DeviceBuildingRequest": {
+            "type": "object",
+            "required": [
+                "building_id"
+            ],
+            "properties": {
+                "building_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
         },
         "controllers.DeviceHealthRequest": {
             "type": "object",
@@ -2526,8 +3851,71 @@ const docTemplate = `{
                 }
             }
         },
-        "controllers.DeviceRequest": {
-            "type": "object"
+        "controllers.DeviceHouseholdRequest": {
+            "type": "object",
+            "required": [
+                "household_id"
+            ],
+            "properties": {
+                "household_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "controllers.DeviceRequestInput": {
+            "type": "object",
+            "required": [
+                "name",
+                "serial_number"
+            ],
+            "properties": {
+                "building_id": {
+                    "description": "关联的楼号ID",
+                    "type": "integer",
+                    "example": 1
+                },
+                "household_ids": {
+                    "description": "关联的户号ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        1,
+                        2
+                    ]
+                },
+                "location": {
+                    "type": "string",
+                    "example": "小区北门入口"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "门禁1号"
+                },
+                "serial_number": {
+                    "type": "string",
+                    "example": "SN12345678"
+                },
+                "staff_ids": {
+                    "description": "关联的物业员工ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        1,
+                        2,
+                        3
+                    ]
+                },
+                "status": {
+                    "description": "online, offline, fault",
+                    "type": "string",
+                    "example": "online"
+                }
+            }
         },
         "controllers.EmergencyAlarmRequest": {
             "type": "object",
@@ -2624,10 +4012,12 @@ const docTemplate = `{
             ],
             "properties": {
                 "call_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "call-20250510-abcdef123456"
                 },
                 "reason": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "call_completed"
                 }
             }
         },
@@ -2657,20 +4047,69 @@ const docTemplate = `{
                 }
             }
         },
+        "controllers.HouseholdDeviceRequest": {
+            "type": "object",
+            "required": [
+                "device_id"
+            ],
+            "properties": {
+                "device_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "controllers.HouseholdRequest": {
+            "type": "object",
+            "required": [
+                "building_id",
+                "household_number"
+            ],
+            "properties": {
+                "building_id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "household_number": {
+                    "type": "string",
+                    "example": "1-1-101"
+                },
+                "status": {
+                    "description": "active, inactive",
+                    "type": "string",
+                    "example": "active"
+                }
+            }
+        },
         "controllers.InitiateCallRequest": {
             "type": "object",
             "required": [
-                "device_device_id",
-                "target_resident_id"
+                "device_device_id"
             ],
             "properties": {
                 "device_device_id": {
                     "description": "使用与MQTT通讯中相同的字段名",
-                    "type": "string"
+                    "type": "string",
+                    "example": "1"
+                },
+                "household_id": {
+                    "description": "可选，指定户号ID",
+                    "type": "string",
+                    "example": "1"
+                },
+                "resident_phone": {
+                    "description": "可选，通过住户电话呼叫",
+                    "type": "string",
+                    "example": "13800138000"
                 },
                 "target_resident_id": {
-                    "description": "使用与MQTT通讯中相同的字段名",
+                    "description": "可选，如不提供则会通知所有关联的居民",
                     "type": "string"
+                },
+                "timestamp": {
+                    "description": "可选时间戳",
+                    "type": "integer",
+                    "example": 1651234567890
                 }
             }
         },
@@ -2678,25 +4117,32 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "call_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "call-20250510-abcdef123456"
                 },
                 "call_info": {
                     "$ref": "#/definitions/controllers.CallInfo"
                 },
                 "device_device_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "1"
                 },
                 "target_resident_ids": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
+                    },
+                    "example": [
+                        "[\"2\"",
+                        "\"3\"]"
+                    ]
                 },
                 "tencen_rtc": {
                     "$ref": "#/definitions/controllers.TRTCInfo"
                 },
                 "timestamp": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1651234567890
                 }
             }
         },
@@ -2763,13 +4209,16 @@ const docTemplate = `{
             ],
             "properties": {
                 "battery": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 85
                 },
                 "device_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "1"
                 },
                 "online": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "example": true
                 },
                 "properties": {
                     "type": "object",
@@ -2790,13 +4239,20 @@ const docTemplate = `{
                     "additionalProperties": true
                 },
                 "level": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "info"
                 },
                 "message": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "系统将于今晚22:00进行升级维护"
+                },
+                "timestamp": {
+                    "type": "integer",
+                    "example": 1651234567890
                 },
                 "type": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "notification"
                 }
             }
         },
@@ -2830,19 +4286,24 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "room_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "call_room_12345"
                 },
                 "room_id_type": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "string"
                 },
                 "sdk_app_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "example": 1400000001
                 },
                 "user_id": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "device_1"
                 },
                 "user_sig": {
-                    "type": "string"
+                    "type": "string",
+                    "example": "eJwtzM1Og0AUhmG..."
                 }
             }
         },
@@ -2917,7 +4378,59 @@ const docTemplate = `{
             }
         },
         "controllers.UpdateStaffRequest": {
-            "type": "object"
+            "type": "object",
+            "properties": {
+                "device_ids": {
+                    "description": "更新关联的设备ID列表",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    },
+                    "example": [
+                        1,
+                        3,
+                        5
+                    ]
+                },
+                "name": {
+                    "type": "string",
+                    "example": "李物业"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "NewProperty@456"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "13700005678"
+                },
+                "position": {
+                    "type": "string",
+                    "example": "前台客服"
+                },
+                "property_name": {
+                    "type": "string",
+                    "example": "幸福家园小区"
+                },
+                "remark": {
+                    "type": "string",
+                    "example": "负责接待访客和处理居民投诉"
+                },
+                "role": {
+                    "description": "可选值: manager, staff, security",
+                    "type": "string",
+                    "example": "staff"
+                },
+                "status": {
+                    "description": "可选值: active, inactive, suspended",
+                    "type": "string",
+                    "example": "active"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "liwuye"
+                }
+            }
         },
         "models.AccessLog": {
             "type": "object",
@@ -2979,11 +4492,62 @@ const docTemplate = `{
                 "AccessResultFailure"
             ]
         },
+        "models.Building": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "description": "楼号地址，如\"小区东南角\"",
+                    "type": "string"
+                },
+                "building_code": {
+                    "description": "楼号编码，如\"B001\"",
+                    "type": "string"
+                },
+                "building_name": {
+                    "description": "楼号名称，如\"1号楼\"",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "devices": {
+                    "description": "楼号关联的设备（一对多）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Device"
+                    }
+                },
+                "households": {
+                    "description": "关联关系",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Household"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "status": {
+                    "description": "状态：active, inactive",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "models.CallRecord": {
             "type": "object",
             "properties": {
+                "call_id": {
+                    "description": "通话唯一标识",
+                    "type": "string"
+                },
                 "call_status": {
                     "$ref": "#/definitions/models.CallStatus"
+                },
+                "created_at": {
+                    "type": "string"
                 },
                 "device": {
                     "description": "Relations",
@@ -3012,6 +4576,9 @@ const docTemplate = `{
                 "timestamp": {
                     "description": "通话开始时间",
                     "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
                 }
             }
         },
@@ -3037,6 +4604,18 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.AccessLog"
                     }
                 },
+                "building": {
+                    "description": "关联的楼号（多对一）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Building"
+                        }
+                    ]
+                },
+                "building_id": {
+                    "description": "关联的楼号ID",
+                    "type": "integer"
+                },
                 "call_records": {
                     "type": "array",
                     "items": {
@@ -3052,6 +4631,18 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.EmergencyLog"
                     }
                 },
+                "household": {
+                    "description": "关联的户号（多对一）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Household"
+                        }
+                    ]
+                },
+                "household_id": {
+                    "description": "关联的户号ID",
+                    "type": "integer"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -3061,14 +4652,18 @@ const docTemplate = `{
                 "name": {
                     "type": "string"
                 },
-                "resident": {
-                    "$ref": "#/definitions/models.Resident"
+                "residents": {
+                    "description": "关联的居民（一对多）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Resident"
+                    }
                 },
                 "serial_number": {
                     "type": "string"
                 },
                 "staff": {
-                    "description": "Relations - 多对多关系",
+                    "description": "Relations - 关联关系",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.PropertyStaff"
@@ -3145,6 +4740,54 @@ const docTemplate = `{
                 "EmergencyStatusResolved"
             ]
         },
+        "models.Household": {
+            "type": "object",
+            "properties": {
+                "building": {
+                    "description": "Relations - 关联关系",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Building"
+                        }
+                    ]
+                },
+                "building_id": {
+                    "description": "关联的楼号ID",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "devices": {
+                    "description": "关联的设备（一对多）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Device"
+                    }
+                },
+                "household_number": {
+                    "description": "户号编号，如\"1-1-101\"",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "residents": {
+                    "description": "关联的居民（一对多）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Resident"
+                    }
+                },
+                "status": {
+                    "description": "状态：active, inactive",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "models.PropertyStaff": {
             "type": "object",
             "properties": {
@@ -3215,7 +4858,7 @@ const docTemplate = `{
                     ]
                 },
                 "device_id": {
-                    "description": "One-to-one relationship with Device",
+                    "description": "关联的设备ID",
                     "type": "integer"
                 },
                 "email": {
@@ -3226,6 +4869,18 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.EmergencyLog"
                     }
+                },
+                "household": {
+                    "description": "所属户号",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.Household"
+                        }
+                    ]
+                },
+                "household_id": {
+                    "description": "关联的户号ID",
+                    "type": "integer"
                 },
                 "id": {
                     "type": "integer"
@@ -3255,7 +4910,7 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "localhost:20033",
+	Host:             "39.108.49.167:20033",
 	BasePath:         "/api",
 	Schemes:          []string{},
 	Title:            "ILock HTTP Service API",

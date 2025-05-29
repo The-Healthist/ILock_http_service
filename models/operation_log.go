@@ -6,7 +6,7 @@ import (
 
 // OperationLog 表示设备操作日志
 type OperationLog struct {
-	ID            uint      `gorm:"primaryKey" json:"id"`
+	BaseModel
 	OperationType string    `gorm:"type:varchar(100);not null" json:"operation_type"` // 如: door_unlock, emergency_unlock, configuration_change
 	DeviceID      uint      `json:"device_id"`
 	UserID        uint      `json:"user_id"` // 执行操作的用户ID，0表示系统自动操作

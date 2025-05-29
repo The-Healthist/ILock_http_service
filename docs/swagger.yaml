@@ -1,16 +1,30 @@
 basePath: /api
 definitions:
-  controllers.CallActionRequest:
+  controllers.BuildingRequest:
     properties:
-      action:
+      address:
+        example: 小区东南角
         type: string
-      call_id:
+      building_code:
+        example: B001
         type: string
-      reason:
+      building_name:
+        example: 1号楼
+        type: string
+      status:
+        description: active, inactive
+        example: active
         type: string
     required:
-    - action
-    - call_id
+    - building_code
+    - building_name
+    type: object
+  controllers.CallActionRequest:
+    properties:
+      call_info:
+        $ref: '#/definitions/controllers.CallInfo'
+    required:
+    - call_info
     type: object
   controllers.CallFeedbackRequest:
     properties:
@@ -34,12 +48,16 @@ definitions:
   controllers.CallInfo:
     properties:
       action:
+        example: answered
         type: string
       call_id:
+        example: call-20250510-abcdef123456
         type: string
       reason:
+        example: user_busy
         type: string
       timestamp:
+        example: 1651234567890
         type: integer
     type: object
   controllers.CallRequest:
@@ -55,16 +73,22 @@ definitions:
   controllers.CallSessionResponse:
     properties:
       call_id:
+        example: call-20250510-abcdef123456
         type: string
       device_id:
+        example: "1"
         type: string
       last_activity:
+        example: "2025-05-10T15:09:10Z"
         type: string
       resident_id:
+        example: "2"
         type: string
       start_time:
+        example: "2025-05-10T15:04:05Z"
         type: string
       status:
+        example: connected
         type: string
       tencen_rtc:
         $ref: '#/definitions/controllers.TRTCInfo'
@@ -90,6 +114,59 @@ definitions:
     - username
     type: object
   controllers.CreateStaffRequest:
+    properties:
+      device_ids:
+        description: 关联的设备ID列表
+        example:
+        - 1
+        - 2
+        - 3
+        items:
+          type: integer
+        type: array
+      name:
+        description: '注意: 已从模型中移除，但保留请求结构以兼容前端'
+        example: 王物业
+        type: string
+      password:
+        example: Property@123
+        type: string
+      phone:
+        example: "13700001234"
+        type: string
+      position:
+        example: 物业经理
+        type: string
+      property_name:
+        example: 阳光花园小区
+        type: string
+      remark:
+        example: 负责A区日常管理工作
+        type: string
+      role:
+        description: '可选值: manager, staff, security'
+        example: manager
+        type: string
+      status:
+        description: '可选值: active, inactive, suspended'
+        example: active
+        type: string
+      username:
+        example: wangwuye
+        type: string
+    required:
+    - password
+    - phone
+    - role
+    - username
+    type: object
+  controllers.DeviceBuildingRequest:
+    properties:
+      building_id:
+        example: 1
+        type: integer
+    required:
+    - building_id
     type: object
   controllers.DeviceHealthRequest:
     properties:
@@ -99,7 +176,53 @@ definitions:
     required:
     - device_id
     type: object
-  controllers.DeviceRequest:
+  controllers.DeviceHouseholdRequest:
+    properties:
+      household_id:
+        example: 1
+        type: integer
+    required:
+    - household_id
+    type: object
+  controllers.DeviceRequestInput:
+    properties:
+      building_id:
+        description: 关联的楼号ID
+        example: 1
+        type: integer
+      household_ids:
+        description: 关联的户号ID列表
+        example:
+        - 1
+        - 2
+        items:
+          type: integer
+        type: array
+      location:
+        example: 小区北门入口
+        type: string
+      name:
+        example: 门禁1号
+        type: string
+      serial_number:
+        example: SN12345678
+        type: string
+      staff_ids:
+        description: 关联的物业员工ID列表
+        example:
+        - 1
+        - 2
+        - 3
+        items:
+          type: integer
+        type: array
+      status:
+        description: online, offline, fault
+        example: online
+        type: string
+    required:
+    - name
+    - serial_number
     type: object
   controllers.EmergencyAlarmRequest:
     properties:
@@ -170,8 +293,10 @@ definitions:
   controllers.EndCallSessionRequest:
     properties:
       call_id:
+        example: call-20250510-abcdef123456
         type: string
       reason:
+        example: call_completed
         type: string
     required:
     - call_id
@@ -194,33 +319,75 @@ definitions:
     required:
     - user_id
     type: object
+  controllers.HouseholdDeviceRequest:
+    properties:
+      device_id:
+        example: 1
+        type: integer
+    required:
+    - device_id
+    type: object
+  controllers.HouseholdRequest:
+    properties:
+      building_id:
+        example: 1
+        type: integer
+      household_number:
+        example: 1-1-101
+        type: string
+      status:
+        description: active, inactive
+        example: active
+        type: string
+    required:
+    - building_id
+    - household_number
+    type: object
   controllers.InitiateCallRequest:
     properties:
       device_device_id:
         description: 使用与MQTT通讯中相同的字段名
+        example: "1"
+        type: string
+      household_id:
+        description: 可选，指定户号ID
+        example: "1"
+        type: string
+      resident_phone:
+        description: 可选，通过住户电话呼叫
+        example: "13800138000"
         type: string
       target_resident_id:
-        description: 使用与MQTT通讯中相同的字段名
+        description: 可选，如不提供则会通知所有关联的居民
         type: string
+      timestamp:
+        description: 可选时间戳
+        example: 1651234567890
+        type: integer
     required:
     - device_device_id
-    - target_resident_id
     type: object
   controllers.InitiateCallResponse:
     properties:
       call_id:
+        example: call-20250510-abcdef123456
         type: string
       call_info:
         $ref: '#/definitions/controllers.CallInfo'
       device_device_id:
+        example: "1"
         type: string
       target_resident_ids:
+        example:
+        - '["2"'
+        - '"3"]'
         items:
           type: string
         type: array
       tencen_rtc:
         $ref: '#/definitions/controllers.TRTCInfo'
       timestamp:
+        example: 1651234567890
         type: integer
     type: object
   controllers.LoginData:
@@ -266,10 +433,13 @@ definitions:
   controllers.PublishDeviceStatusRequest:
     properties:
       battery:
+        example: 85
         type: integer
       device_id:
+        example: "1"
         type: string
       online:
+        example: true
         type: boolean
       properties:
         additionalProperties: true
@@ -283,10 +453,16 @@ definitions:
         additionalProperties: true
         type: object
       level:
+        example: info
         type: string
       message:
+        example: 系统将于今晚22:00进行升级维护
         type: string
+      timestamp:
+        example: 1651234567890
+        type: integer
       type:
+        example: notification
         type: string
     required:
     - level
@@ -315,14 +491,19 @@ definitions:
   controllers.TRTCInfo:
     properties:
       room_id:
+        example: call_room_12345
         type: string
       room_id_type:
+        example: string
         type: string
       sdk_app_id:
+        example: 1400000001
         type: integer
       user_id:
+        example: device_1
         type: string
       user_sig:
+        example: eJwtzM1Og0AUhmG...
         type: string
     type: object
   controllers.TencentCallRequest:
@@ -375,6 +556,45 @@ definitions:
         type: string
     type: object
   controllers.UpdateStaffRequest:
+    properties:
+      device_ids:
+        description: 更新关联的设备ID列表
+        example:
+        - 1
+        - 3
+        - 5
+        items:
+          type: integer
+        type: array
+      name:
+        example: 李物业
+        type: string
+      password:
+        example: NewProperty@456
+        type: string
+      phone:
+        example: "13700005678"
+        type: string
+      position:
+        example: 前台客服
+        type: string
+      property_name:
+        example: 幸福家园小区
+        type: string
+      remark:
+        example: 负责接待访客和处理居民投诉
+        type: string
+      role:
+        description: '可选值: manager, staff, security'
+        example: staff
+        type: string
+      status:
+        description: '可选值: active, inactive, suspended'
+        example: active
+        type: string
+      username:
+        example: liwuye
+        type: string
     type: object
   models.AccessLog:
     properties:
@@ -417,10 +637,46 @@ definitions:
     x-enum-varnames:
     - AccessResultSuccess
     - AccessResultFailure
+  models.Building:
+    properties:
+      address:
+        description: 楼号地址，如"小区东南角"
+        type: string
+      building_code:
+        description: 楼号编码，如"B001"
+        type: string
+      building_name:
+        description: 楼号名称，如"1号楼"
+        type: string
+      created_at:
+        type: string
+      devices:
+        description: 楼号关联的设备（一对多）
+        items:
+          $ref: '#/definitions/models.Device'
+        type: array
+      households:
+        description: 关联关系
+        items:
+          $ref: '#/definitions/models.Household'
+        type: array
+      id:
+        type: integer
+      status:
+        description: 状态：active, inactive
+        type: string
+      updated_at:
+        type: string
+    type: object
   models.CallRecord:
     properties:
+      call_id:
+        description: 通话唯一标识
+        type: string
       call_status:
         $ref: '#/definitions/models.CallStatus'
+      created_at:
+        type: string
       device:
         allOf:
         - $ref: '#/definitions/models.Device'
@@ -439,6 +695,8 @@ definitions:
       timestamp:
         description: 通话开始时间
         type: string
+      updated_at:
+        type: string
     type: object
   models.CallStatus:
     enum:
@@ -456,6 +714,13 @@ definitions:
         items:
           $ref: '#/definitions/models.AccessLog'
         type: array
+      building:
+        allOf:
+        - $ref: '#/definitions/models.Building'
+        description: 关联的楼号（多对一）
+      building_id:
+        description: 关联的楼号ID
+        type: integer
       call_records:
         items:
           $ref: '#/definitions/models.CallRecord'
@@ -466,18 +731,28 @@ definitions:
         items:
           $ref: '#/definitions/models.EmergencyLog'
         type: array
+      household:
+        allOf:
+        - $ref: '#/definitions/models.Household'
+        description: 关联的户号（多对一）
+      household_id:
+        description: 关联的户号ID
+        type: integer
       id:
         type: integer
       location:
         type: string
       name:
         type: string
-      resident:
-        $ref: '#/definitions/models.Resident'
+      residents:
+        description: 关联的居民（一对多）
+        items:
+          $ref: '#/definitions/models.Resident'
+        type: array
       serial_number:
         type: string
       staff:
-        description: Relations - 多对多关系
+        description: Relations - 关联关系
         items:
           $ref: '#/definitions/models.PropertyStaff'
         type: array
@@ -530,6 +805,38 @@ definitions:
     - EmergencyStatusResponded
     - EmergencyStatusEscalated
     - EmergencyStatusResolved
+  models.Household:
+    properties:
+      building:
+        allOf:
+        - $ref: '#/definitions/models.Building'
+        description: Relations - 关联关系
+      building_id:
+        description: 关联的楼号ID
+        type: integer
+      created_at:
+        type: string
+      devices:
+        description: 关联的设备（一对多）
+        items:
+          $ref: '#/definitions/models.Device'
+        type: array
+      household_number:
+        description: 户号编号，如"1-1-101"
+        type: string
+      id:
+        type: integer
+      residents:
+        description: 关联的居民（一对多）
+        items:
+          $ref: '#/definitions/models.Resident'
+        type: array
+      status:
+        description: 状态：active, inactive
+        type: string
+      updated_at:
+        type: string
+    type: object
   models.PropertyStaff:
     properties:
       created_at:
@@ -576,7 +883,7 @@ definitions:
         - $ref: '#/definitions/models.Device'
         description: Relations
       device_id:
-        description: One-to-one relationship with Device
+        description: 关联的设备ID
         type: integer
       email:
         type: string
@@ -584,6 +891,13 @@ definitions:
         items:
           $ref: '#/definitions/models.EmergencyLog'
         type: array
+      household:
+        allOf:
+        - $ref: '#/definitions/models.Household'
+        description: 所属户号
+      household_id:
+        description: 关联的户号ID
+        type: integer
       id:
         type: integer
       name:
@@ -593,7 +907,7 @@ definitions:
       updated_at:
         type: string
     type: object
-host: localhost:20033
+host: 39.108.49.167:20033
 info:
   contact:
     email: support@yourcompany.com
@@ -611,17 +925,17 @@ paths:
     get:
       consumes:
       - application/json
-      description: Get a list of all admin users with pagination
+      description: 分页获取所有管理员用户列表
       parameters:
-      - description: Page number, default is 1
+      - description: 页码, 默认为1
         in: query
         name: page
         type: integer
-      - description: Items per page, default is 10
+      - description: 每页条数, 默认为10
         in: query
         name: page_size
         type: integer
-      - description: Search keyword for username, phone, etc.
+      - description: 搜索关键词(用户名、电话等)
         in: query
         name: search
         type: string
@@ -639,15 +953,15 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Admin List
+      summary: 获取管理员列表
       tags:
       - Admin
     post:
       consumes:
       - application/json
-      description: Create a new admin user
+      description: 创建一个新的管理员用户
       parameters:
-      - description: Admin information
+      - description: 管理员信息
         in: body
         name: request
         required: true
@@ -671,16 +985,16 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Create Admin
+      summary: 创建管理员
       tags:
       - Admin
   /admins/{id}:
     delete:
       consumes:
       - application/json
-      description: Delete an admin user with the specified ID
+      description: 删除指定ID的管理员用户
       parameters:
-      - description: Admin ID
+      - description: 管理员ID
         in: path
         name: id
         required: true
@@ -707,15 +1021,15 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Delete Admin
+      summary: 删除管理员
       tags:
       - Admin
     get:
       consumes:
       - application/json
-      description: Get details of a specific admin by ID
+      description: 根据ID获取特定管理员的详细信息
       parameters:
-      - description: Admin ID
+      - description: 管理员ID
         in: path
         name: id
         required: true
@@ -742,20 +1056,20 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Admin By ID
+      summary: 获取管理员详情
       tags:
       - Admin
     put:
       consumes:
       - application/json
-      description: Update an existing admin user
+      description: 更新现有管理员用户的信息
       parameters:
-      - description: Admin ID
+      - description: 管理员ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Updated admin information
+      - description: 更新的管理员信息
         in: body
         name: request
         required: true
@@ -783,7 +1097,7 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Update Admin
+      summary: 更新管理员
       tags:
       - Admin
   /api/rtc/call:
@@ -888,17 +1202,17 @@ paths:
       summary: User Login
       tags:
       - Auth
-  /calls:
+  /buildings:
     get:
       consumes:
       - application/json
-      description: Get a list of all call records in the system, with pagination
+      description: 获取系统中所有楼号的列表
       parameters:
-      - description: Page number, default is 1
+      - description: 页码，默认为1
         in: query
         name: page
         type: integer
-      - description: Items per page, default is 10
+      - description: 每页条数，默认为10
         in: query
         name: page_size
         type: integer
@@ -916,16 +1230,48 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Call Records
+      summary: 获取所有楼号
       tags:
-      - CallRecord
-  /calls/{id}:
-    get:
+      - Building
+    post:
       consumes:
       - application/json
-      description: Get details of a specific call record by ID
+      description: 创建一个新的楼号
       parameters:
-      - description: Call Record ID
+      - description: 楼号信息
+        in: body
+        name: building
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.BuildingRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建楼号
+      tags:
+      - Building
+  /buildings/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的楼号
+      parameters:
+      - description: 楼号ID
         in: path
         name: id
         required: true
@@ -952,21 +1298,236 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Call Record By ID
+      summary: 删除楼号
       tags:
-      - CallRecord
-  /calls/{id}/feedback:
-    post:
+      - Building
+    get:
       consumes:
       - application/json
-      description: Submit quality feedback for a specific call record
+      description: 根据ID获取楼号详细信息
       parameters:
-      - description: Call Record ID
+      - description: 楼号ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Feedback information
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取楼号详情
+      tags:
+      - Building
+    put:
+      consumes:
+      - application/json
+      description: 更新楼号信息
+      parameters:
+      - description: 楼号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 楼号信息
+        in: body
+        name: building
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.BuildingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新楼号
+      tags:
+      - Building
+  /buildings/{id}/devices:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定楼号关联的所有设备
+      parameters:
+      - description: 楼号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取楼号关联的设备
+      tags:
+      - Building
+  /buildings/{id}/households:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定楼号下的所有户号
+      parameters:
+      - description: 楼号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取楼号下的户号
+      tags:
+      - Building
+  /call_records:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统中所有通话记录，支持分页
+      parameters:
+      - description: 页码，默认为1
+        in: query
+        name: page
+        type: integer
+      - description: 每页条数，默认为10
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取通话记录列表
+      tags:
+      - CallRecord
+  /call_records/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取特定通话记录的详细信息
+      parameters:
+      - description: 通话记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取通话记录详情
+      tags:
+      - CallRecord
+  /call_records/{id}/feedback:
+    post:
+      consumes:
+      - application/json
+      description: 为特定通话记录提交质量反馈
+      parameters:
+      - description: 通话记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 反馈信息
         in: body
         name: request
         required: true
@@ -994,25 +1555,25 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Submit Call Feedback
+      summary: 提交通话反馈
       tags:
       - CallRecord
-  /calls/device/{deviceId}:
+  /call_records/device/{deviceId}:
     get:
       consumes:
       - application/json
-      description: Get call records for a specific device, with pagination
+      description: 获取特定设备的通话记录，支持分页
       parameters:
-      - description: Device ID
+      - description: 设备ID
         in: path
         name: deviceId
         required: true
         type: integer
-      - description: Page number, default is 1
+      - description: 页码，默认为1
         in: query
         name: page
         type: integer
-      - description: Items per page, default is 10
+      - description: 每页条数，默认为10
         in: query
         name: page_size
         type: integer
@@ -1038,25 +1599,25 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Device Call Records
+      summary: 获取设备通话记录
       tags:
       - CallRecord
-  /calls/resident/{residentId}:
+  /call_records/resident/{residentId}:
     get:
       consumes:
       - application/json
-      description: Get call records for a specific resident, with pagination
+      description: 获取特定居民的通话记录，支持分页
       parameters:
-      - description: Resident ID
+      - description: 居民ID
         in: path
         name: residentId
         required: true
         type: integer
-      - description: Page number, default is 1
+      - description: 页码，默认为1
         in: query
         name: page
         type: integer
-      - description: Items per page, default is 10
+      - description: 每页条数，默认为10
         in: query
         name: page_size
         type: integer
@@ -1082,14 +1643,50 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Resident Call Records
+      summary: 获取居民通话记录
       tags:
       - CallRecord
-  /calls/statistics:
+  /call_records/session:
     get:
       consumes:
       - application/json
-      description: Get call statistics including total, answered, missed, etc.
+      description: 通过CallID（MQTT会话ID）获取特定通话记录的详细信息
+      parameters:
+      - description: 通话会话ID（UUID）
+        in: query
+        name: call_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 通过CallID获取通话记录
+      tags:
+      - CallRecord
+  /call_records/statistics:
+    get:
+      consumes:
+      - application/json
+      description: 获取通话统计信息，包括总数、已接、未接等
       produces:
       - application/json
       responses:
@@ -1104,7 +1701,7 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Call Statistics
+      summary: 获取通话统计信息
       tags:
       - CallRecord
   /device/status:
@@ -1148,7 +1745,12 @@ paths:
     get:
       consumes:
       - application/json
-      description: 获取所有设备的列表
+      description: 获取所有设备的列表，支持按楼号筛选
+      parameters:
+      - description: 楼号ID
+        in: query
+        name: building_id
+        type: integer
       produces:
       - application/json
       responses:
@@ -1174,27 +1776,27 @@ paths:
     post:
       consumes:
       - application/json
-      description: 创建一个新的门禁设备
+      description: 创建一个新的门禁设备，支持设备类型和关联
       parameters:
-      - description: 设备信息
+      - description: 设备信息：包含名称、类型、位置、关联楼号/户号等
         in: body
         name: device
         required: true
         schema:
-          $ref: '#/definitions/controllers.DeviceRequest'
+          $ref: '#/definitions/controllers.DeviceRequestInput'
       produces:
       - application/json
       responses:
         "201":
-          description: Created
+          description: 成功创建的设备信息
           schema:
             $ref: '#/definitions/models.Device'
         "400":
-          description: Bad Request
+          description: 请求参数错误，如缺少必填字段或格式不正确
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: 服务器内部错误，可能是数据库操作失败等
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
@@ -1272,26 +1874,68 @@ paths:
     put:
       consumes:
       - application/json
-      description: 根据ID更新设备信息
+      description: 根据ID更新设备信息，支持更新关联
       parameters:
       - description: 设备ID
         in: path
         name: id
         required: true
         type: string
-      - description: 设备信息
+      - description: 设备信息：包含需要更新的字段
         in: body
         name: device
         required: true
         schema:
-          $ref: '#/definitions/controllers.DeviceRequest'
+          $ref: '#/definitions/controllers.DeviceRequestInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 更新后的设备信息
+          schema:
+            $ref: '#/definitions/models.Device'
+        "400":
+          description: 请求参数错误
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: 设备不存在
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: 服务器内部错误
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新设备信息
+      tags:
+      - device
+  /devices/{id}/building:
+    post:
+      consumes:
+      - application/json
+      description: 将指定设备关联到楼号
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 楼号信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.DeviceBuildingRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Device'
+            additionalProperties: true
+            type: object
         "400":
           description: Bad Request
           schema:
@@ -1306,16 +1950,16 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: 更新设备信息
+      summary: 关联设备与楼号
       tags:
       - device
-  /devices/{id}/status:
+  /devices/{id}/households:
     get:
       consumes:
       - application/json
-      description: Get the current status of a device by ID
+      description: 获取指定设备关联的所有户号
       parameters:
-      - description: Device ID
+      - description: 设备ID
         in: path
         name: id
         required: true
@@ -1328,6 +1972,10 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
         "404":
           description: Not Found
           schema:
@@ -1338,7 +1986,121 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Device Status
+      summary: 获取设备关联的户号
+      tags:
+      - device
+    post:
+      consumes:
+      - application/json
+      description: 将指定设备关联到户号
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 户号信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.DeviceHouseholdRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 关联设备与户号
+      tags:
+      - device
+  /devices/{id}/households/{household_id}:
+    delete:
+      consumes:
+      - application/json
+      description: 解除指定设备与户号的关联
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 户号ID
+        in: path
+        name: household_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 解除设备与户号的关联
+      tags:
+      - device
+  /devices/{id}/status:
+    get:
+      consumes:
+      - application/json
+      description: 获取设备的当前状态信息，包括在线状态、最后更新时间等
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 设备状态信息，包含ID、名称、状态、位置、最后在线时间等
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 设备不存在
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: 服务器内部错误，可能是数据库查询失败等
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取设备状态
       tags:
       - device
   /emergency/alarm:
@@ -1462,14 +2224,346 @@ paths:
       summary: Emergency Unlock All Doors
       tags:
       - Emergency
+  /households:
+    get:
+      consumes:
+      - application/json
+      description: 获取系统中所有户号的列表
+      parameters:
+      - description: 页码，默认为1
+        in: query
+        name: page
+        type: integer
+      - description: 每页条数，默认为10
+        in: query
+        name: page_size
+        type: integer
+      - description: 楼号ID，用于筛选特定楼号下的户号
+        in: query
+        name: building_id
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取所有户号
+      tags:
+      - Household
+    post:
+      consumes:
+      - application/json
+      description: 创建一个新的户号，需要关联到楼号
+      parameters:
+      - description: 户号信息
+        in: body
+        name: household
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.HouseholdRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 创建户号
+      tags:
+      - Household
+  /households/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除指定的户号
+      parameters:
+      - description: 户号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 删除户号
+      tags:
+      - Household
+    get:
+      consumes:
+      - application/json
+      description: 根据ID获取户号详细信息
+      parameters:
+      - description: 户号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取户号详情
+      tags:
+      - Household
+    put:
+      consumes:
+      - application/json
+      description: 更新户号信息
+      parameters:
+      - description: 户号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 户号信息
+        in: body
+        name: household
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.HouseholdRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 更新户号
+      tags:
+      - Household
+  /households/{id}/devices:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定户号关联的所有设备
+      parameters:
+      - description: 户号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取户号关联的设备
+      tags:
+      - Household
+    post:
+      consumes:
+      - application/json
+      description: 将指定户号关联到设备
+      parameters:
+      - description: 户号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 设备信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/controllers.HouseholdDeviceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 关联户号与设备
+      tags:
+      - Household
+  /households/{id}/devices/{device_id}:
+    delete:
+      consumes:
+      - application/json
+      description: 解除指定户号与设备的关联
+      parameters:
+      - description: 户号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 设备ID
+        in: path
+        name: device_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 解除户号与设备的关联
+      tags:
+      - Household
+  /households/{id}/residents:
+    get:
+      consumes:
+      - application/json
+      description: 获取指定户号下的所有居民
+      parameters:
+      - description: 户号ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controllers.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取户号下的居民
+      tags:
+      - Household
   /mqtt/call:
     post:
       consumes:
       - application/json
-      description: Start a new call via MQTT to all residents associated with the
-        device
+      description: 通过MQTT向设备或住户发起视频通话请求，支持三种调用方式：1.通过住户电话呼叫；2.通过指定户号呼叫；3.通过设备关联的户号呼叫
       parameters:
-      - description: Call initiation request
+      - description: 通话请求参数：支持device_device_id(必填)、household_id(可选)、target_resident_id(可选)、resident_phone(可选)参数
         in: body
         name: request
         required: true
@@ -1490,16 +2584,16 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Initiate MQTT Call
+      summary: 发起MQTT通话
       tags:
       - MQTT
   /mqtt/controller/device:
     post:
       consumes:
       - application/json
-      description: Process device side call actions (hangup, cancelled)
+      description: 处理设备端通话动作，支持的动作类型包括：hangup(挂断)、cancelled(取消呼叫)
       parameters:
-      - description: Device call action request
+      - description: 设备通话动作请求，包含call_id和action字段
         in: body
         name: request
         required: true
@@ -1521,17 +2615,16 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Handle MQTT Caller Action
+      summary: 处理MQTT呼叫方动作
       tags:
       - MQTT
   /mqtt/controller/resident:
     post:
       consumes:
       - application/json
-      description: Process resident side call actions (answered, rejected, hangup,
-        timeout)
+      description: 处理居民端通话动作，支持的动作类型包括：rejected(拒绝)、answered(接听)、hangup(挂断)、timeout(超时)
       parameters:
-      - description: Resident call action request
+      - description: 居民通话动作请求，包含call_id、action和可选的reason字段
         in: body
         name: request
         required: true
@@ -1553,16 +2646,16 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Handle MQTT Callee Action
+      summary: 处理MQTT被呼叫方动作
       tags:
       - MQTT
   /mqtt/device/status:
     post:
       consumes:
       - application/json
-      description: 更新设备状态信息，包括在线状态、电池电量和其他自定义属性，无需MQTT连接
+      description: 更新设备状态信息，包括在线状态、电池电量和其他自定义属性，无需MQTT连接，系统会通过MQTT推送给相关订阅方
       parameters:
-      - description: 设备状态信息：包含设备ID、在线状态、电池电量等
+      - description: 设备状态信息：必须包含device_id、online、battery字段，可选包含properties自定义属性
         in: body
         name: request
         required: true
@@ -1588,16 +2681,16 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Update Device Status
+      summary: 更新设备状态
       tags:
       - Device
   /mqtt/end-session:
     post:
       consumes:
       - application/json
-      description: Forcefully end a call session and notify all parties
+      description: 强制结束通话会话并通知所有参与方，适用于系统管理或异常情况下的通话强制终止
       parameters:
-      - description: End call session request
+      - description: 结束通话会话请求，包含call_id和可选的reason字段
         in: body
         name: request
         required: true
@@ -1619,16 +2712,16 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
-      summary: End MQTT Call Session
+      summary: 结束MQTT通话会话
       tags:
       - MQTT
   /mqtt/session:
     get:
       consumes:
       - application/json
-      description: Retrieve call session information with TRTC details
+      description: 获取通话会话信息及TRTC房间详情，包括设备ID、住户ID、通话状态、开始时间等
       parameters:
-      - description: Call session ID
+      - description: 通话会话ID
         in: query
         name: call_id
         required: true
@@ -1648,16 +2741,16 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Get MQTT Call Session
+      summary: 获取MQTT通话会话
       tags:
       - MQTT
   /mqtt/system/message:
     post:
       consumes:
       - application/json
-      description: Publish system message via MQTT
+      description: 通过MQTT发布系统消息，支持info、warning、error三种级别，消息会推送给所有订阅相关主题的客户端
       parameters:
-      - description: System message information
+      - description: 系统消息信息：必须包含type、level、message字段，level支持info、warning、error三种级别
         in: body
         name: request
         required: true
@@ -1679,14 +2772,23 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
-      summary: Publish System Message
+      summary: 发布系统消息
       tags:
       - MQTT
   /residents:
     get:
       consumes:
       - application/json
-      description: Get a list of all residents in the system
+      description: 获取系统中所有居民的列表
+      parameters:
+      - description: 页码，默认为1
+        in: query
+        name: page
+        type: integer
+      - description: 每页条数，默认为10
+        in: query
+        name: page_size
+        type: integer
       produces:
       - application/json
       responses:
@@ -1705,17 +2807,15 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Resident List
+      summary: 获取居民列表
       tags:
       - Resident
     post:
       consumes:
       - application/json
-      description: Create a new resident account, requiring association with a specific
-        device
+      description: 创建新的居民账户，需要关联到特定设备
       parameters:
-      - description: Resident information - name, phone and device ID are required,
-          email is optional
+      - description: 居民信息 - 姓名、电话和设备ID为必填，邮箱可选
         in: body
         name: request
         required: true
@@ -1725,30 +2825,30 @@ paths:
       - application/json
       responses:
         "201":
-          description: Success response with created resident details
+          description: 成功响应，包含创建的居民详情
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Bad request, device not found or phone number already in use
+          description: 请求错误，设备不存在或电话号码已被使用
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
         "500":
-          description: Server error
+          description: 服务器错误
           schema:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Create Resident
+      summary: 创建居民
       tags:
       - Resident
   /residents/{id}:
     delete:
       consumes:
       - application/json
-      description: Delete a resident with the specified ID
+      description: 删除指定ID的居民
       parameters:
-      - description: Resident ID
+      - description: 居民ID
         in: path
         name: id
         required: true
@@ -1775,15 +2875,15 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Delete Resident
+      summary: 删除居民
       tags:
       - Resident
     get:
       consumes:
       - application/json
-      description: Get details of a specific resident by ID
+      description: 根据ID获取特定居民的详细信息
       parameters:
-      - description: Resident ID
+      - description: 居民ID
         in: path
         name: id
         required: true
@@ -1810,20 +2910,20 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Resident By ID
+      summary: 获取居民详情
       tags:
       - Resident
     put:
       consumes:
       - application/json
-      description: Update details of a resident with the specified ID
+      description: 更新现有居民的信息
       parameters:
-      - description: Resident ID
+      - description: 居民ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Updated resident information
+      - description: 更新的居民信息
         in: body
         name: request
         required: true
@@ -1851,25 +2951,24 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Update Resident
+      summary: 更新居民
       tags:
       - Resident
   /staffs:
     get:
       consumes:
       - application/json
-      description: Get a list of all property staff members, with pagination and search
-        support
+      description: 获取所有物业员工的列表，支持分页和搜索
       parameters:
-      - description: Page number, default is 1
+      - description: 页码，默认为1
         in: query
         name: page
         type: integer
-      - description: Items per page, default is 10
+      - description: 每页条数，默认为10
         in: query
         name: page_size
         type: integer
-      - description: Search keyword for name, phone, etc.
+      - description: 搜索关键词(姓名、电话等)
         in: query
         name: search
         type: string
@@ -1887,15 +2986,15 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Property Staff List
+      summary: 获取物业员工列表
       tags:
       - Staff
     post:
       consumes:
       - application/json
-      description: Create a new property staff member
+      description: 创建一个新的物业员工
       parameters:
-      - description: Property staff information
+      - description: 物业员工信息
         in: body
         name: request
         required: true
@@ -1919,16 +3018,16 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Create Property Staff
+      summary: 创建物业员工
       tags:
       - Staff
   /staffs/{id}:
     delete:
       consumes:
       - application/json
-      description: Delete a property staff member with the specified ID
+      description: 删除指定ID的物业员工
       parameters:
-      - description: Property Staff ID
+      - description: 物业员工ID
         in: path
         name: id
         required: true
@@ -1955,15 +3054,15 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Delete Property Staff
+      summary: 删除物业员工
       tags:
       - Staff
     get:
       consumes:
       - application/json
-      description: Get details of a specific property staff member by ID
+      description: 根据ID获取特定物业员工的详细信息
       parameters:
-      - description: Property Staff ID
+      - description: 物业员工ID
         in: path
         name: id
         required: true
@@ -1990,20 +3089,20 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Property Staff By ID
+      summary: 获取物业员工详情
       tags:
       - Staff
     put:
       consumes:
       - application/json
-      description: Update an existing property staff member
+      description: 更新现有物业员工的信息
       parameters:
-      - description: Property Staff ID
+      - description: 物业员工ID
         in: path
         name: id
         required: true
         type: integer
-      - description: Updated property staff information
+      - description: 更新的物业员工信息
         in: body
         name: request
         required: true
@@ -2031,25 +3130,24 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Update Property Staff
+      summary: 更新物业员工
       tags:
       - Staff
   /staffs/with-devices:
     get:
       consumes:
       - application/json
-      description: Get a list of all property staff members with their associated
-        devices
+      description: 获取所有物业员工的列表及其关联的设备信息
       parameters:
-      - description: Page number, default is 1
+      - description: 页码，默认为1
         in: query
         name: page
         type: integer
-      - description: Items per page, default is 10
+      - description: 每页条数，默认为10
         in: query
         name: page_size
         type: integer
-      - description: Search keyword for name, phone, etc.
+      - description: 搜索关键词(姓名、电话等)
         in: query
         name: search
         type: string
@@ -2067,7 +3165,7 @@ paths:
             $ref: '#/definitions/controllers.ErrorResponse'
       security:
       - BearerAuth: []
-      summary: Get Property Staff List With Devices
+      summary: 获取带设备信息的物业员工列表
       tags:
       - Staff
   /trtc/call:

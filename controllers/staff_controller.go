@@ -184,7 +184,7 @@ type CreateStaffRequest struct {
 	Remark       string `json:"remark" example:"负责A区日常管理工作"`
 	Username     string `json:"username" binding:"required" example:"wangwuye"`
 	Password     string `json:"password" binding:"required" example:"Property@123"`
-	DeviceIDs    []uint `json:"device_ids" example:"[1,2,3]"` // 关联的设备ID列表
+	DeviceIDs    []uint `json:"device_ids" example:"1,2,3"` // 关联的设备ID列表
 }
 
 // CreateStaff 创建新物业员工
@@ -291,7 +291,7 @@ type UpdateStaffRequest struct {
 	Remark       string `json:"remark" example:"负责接待访客和处理居民投诉"`
 	Username     string `json:"username" example:"liwuye"`
 	Password     string `json:"password" example:"NewProperty@456"`
-	DeviceIDs    []uint `json:"device_ids" example:"[1,3,5]"` // 更新关联的设备ID列表
+	DeviceIDs    []uint `json:"device_ids" example:"1,3,5"` // 更新关联的设备ID列表
 }
 
 // UpdateStaff 更新物业员工信息

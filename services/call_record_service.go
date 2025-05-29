@@ -64,7 +64,7 @@ func (s *CallRecordService) GetAllCallRecords(page, pageSize int) ([]models.Call
 
 	// 分页查询，并预加载关联
 	offset := (page - 1) * pageSize
-	if err := s.DB.Preload("Device").Preload("Resident").
+	if err := s.DB.Preload("Device").Preload("Residents").
 		Order("timestamp DESC").
 		Limit(pageSize).Offset(offset).
 		Find(&calls).Error; err != nil {
@@ -77,7 +77,7 @@ func (s *CallRecordService) GetAllCallRecords(page, pageSize int) ([]models.Call
 // 2 GetCallRecordByID 根据ID获取通话记录
 func (s *CallRecordService) GetCallRecordByID(id uint) (*models.CallRecord, error) {
 	var call models.CallRecord
-	if err := s.DB.Preload("Device").Preload("Resident").First(&call, id).Error; err != nil {
+	if err := s.DB.Preload("Device").Preload("Residents").First(&call, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("通话记录不存在")
 		}
@@ -107,7 +107,7 @@ func (s *CallRecordService) GetCallRecordsByDeviceID(deviceID uint, page, pageSi
 
 	// 分页查询，并预加载关联
 	offset := (page - 1) * pageSize
-	if err := s.DB.Preload("Device").Preload("Resident").
+	if err := s.DB.Preload("Device").Preload("Residents").
 		Where("device_id = ?", deviceID).
 		Order("timestamp DESC").
 		Limit(pageSize).Offset(offset).
@@ -139,7 +139,7 @@ func (s *CallRecordService) GetCallRecordsByResidentID(residentID uint, page, pa
 
 	// 分页查询，并预加载关联
 	offset := (page - 1) * pageSize
-	if err := s.DB.Preload("Device").Preload("Resident").
+	if err := s.DB.Preload("Device").Preload("Residents").
 		Where("resident_id = ?", residentID).
 		Order("timestamp DESC").
 		Limit(pageSize).Offset(offset).
@@ -222,9 +222,9 @@ func (s *CallRecordService) SubmitCallFeedback(feedback *CallFeedback) error {
 // GetCallRecordByCallID 根据通话ID获取通话记录
 func (s *CallRecordService) GetCallRecordByCallID(callID string) (*models.CallRecord, error) {
 	var call models.CallRecord
-	
+
 	// 查询字段名可能需要根据实际的数据表结构调整
-	if err := s.DB.Preload("Device").Preload("Resident").
+	if err := s.DB.Preload("Device").Preload("Residents").
 		Where("call_id = ?", callID).
 		First(&call).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -232,6 +232,6 @@ func (s *CallRecordService) GetCallRecordByCallID(callID string) (*models.CallRe
 		}
 		return nil, err
 	}
-	
+
 	return &call, nil
 }

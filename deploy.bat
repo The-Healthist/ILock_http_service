@@ -1,6 +1,9 @@
 @echo off
 REM iLock Manual Deployment Script
 
+REM 版本设置
+set VERSION=1.1.0
+
 REM Server settings
 set SSH_HOST=39.108.49.167
 set SSH_PORT=22
@@ -19,13 +22,24 @@ REM Login to Docker Hub
 echo Logging in to Docker Hub...
 docker login -u %DOCKER_USERNAME% -p %DOCKER_PASSWORD%
 
-REM Build Docker image
-echo Building Docker image...
-docker build -t %DOCKER_USERNAME%/ilock-http-service:latest .
+REM Build Docker image with version
+echo Building Docker image version %VERSION%...
+docker build -t %DOCKER_USERNAME%/ilock-http-service:%VERSION% .
+
+REM Tag as latest as well
+echo Tagging as latest...
+docker tag %DOCKER_USERNAME%/ilock-http-service:%VERSION% %DOCKER_USERNAME%/ilock-http-service:latest
 
 REM Push Docker image to Docker Hub
-echo Pushing Docker image to Docker Hub...
+echo Pushing versioned Docker image to Docker Hub...
+docker push %DOCKER_USERNAME%/ilock-http-service:%VERSION%
+
+echo Pushing latest Docker image to Docker Hub...
 docker push %DOCKER_USERNAME%/ilock-http-service:latest
+
+REM 更新本地docker-compose.yml文件中的版本号
+echo Updating version in docker-compose.yml...
+powershell -Command "(Get-Content docker-compose.yml) -replace 'stonesea/ilock-http-service:[^\"]*', 'stonesea/ilock-http-service:%VERSION%' | Set-Content docker-compose.yml"
 
 REM Copy files to server using scp
 echo Copying deployment files to server...
@@ -40,7 +54,7 @@ echo Executing deployment commands on server...
 
 REM 使用直接的SSH命令在服务器上执行部署步骤，而不是通过脚本文件
 echo Running deployment commands directly via SSH...
-ssh -p %SSH_PORT% %SSH_USERNAME%@%SSH_HOST% "cd /root/ilock && mkdir -p /root/ilock/logs && echo '{\"registry-mirrors\": [\"https://docker.1ms.run\", \"https://docker.mybacc.com\", \"https://dytt.online\", \"https://lispy.org\", \"https://docker.xiaogenban1993.com\", \"https://docker.yomansunter.com\", \"https://aicarbon.xyz\", \"https://666860.xyz\", \"https://docker.zhai.cm\", \"https://a.ussh.net\", \"https://hub.littlediary.cn\", \"https://hub.rat.dev\", \"https://docker.m.daocloud.io\", \"https://registry.cn-hangzhou.aliyuncs.com\"]}' | sudo tee /etc/docker/daemon.json && sudo systemctl daemon-reload && sudo systemctl restart docker && echo 'Stopping existing services...' && docker-compose down --volumes --remove-orphans || true && echo 'Cleaning old images...' && docker rmi %DOCKER_USERNAME%/ilock-http-service:latest || true"
+ssh -p %SSH_PORT% %SSH_USERNAME%@%SSH_HOST% "cd /root/ilock && mkdir -p /root/ilock/logs && echo '{\"registry-mirrors\": [\"https://docker.1ms.run\", \"https://docker.mybacc.com\", \"https://dytt.online\", \"https://lispy.org\", \"https://docker.xiaogenban1993.com\", \"https://docker.yomansunter.com\", \"https://aicarbon.xyz\", \"https://666860.xyz\", \"https://docker.zhai.cm\", \"https://a.ussh.net\", \"https://hub.littlediary.cn\", \"https://hub.rat.dev\", \"https://docker.m.daocloud.io\", \"https://registry.cn-hangzhou.aliyuncs.com\"]}' | sudo tee /etc/docker/daemon.json && sudo systemctl daemon-reload && sudo systemctl restart docker && echo 'Stopping existing services...' && docker-compose down --volumes --remove-orphans || true && echo 'Cleaning old images...' && docker rmi %DOCKER_USERNAME%/ilock-http-service:%VERSION% %DOCKER_USERNAME%/ilock-http-service:latest || true"
 
 REM 确保.env文件权限正确
 echo Ensuring .env file has proper permissions...
@@ -70,7 +84,7 @@ REM 检查SSH返回值来判断部署是否成功
 if %errorlevel% neq 0 (
   echo Deployment failed. Please check the logs.
 ) else (
-  echo Deployment successful!
+  echo Deployment successful! Deployed version %VERSION%
 )
 
 pause

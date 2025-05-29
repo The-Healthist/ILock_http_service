@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"ilock-http-service/config"
 	"ilock-http-service/services"
 	"ilock-http-service/services/container"
 	"net/http"
@@ -38,9 +39,11 @@ func NewMQTTCallController(ctx *gin.Context, container *container.ServiceContain
 type (
 	// InitiateCallRequest 发起通话请求
 	InitiateCallRequest struct {
-		DeviceID     string `json:"device_device_id" binding:"required" example:"1"` // 使用与MQTT通讯中相同的字段名
-		TargetUserID string `json:"target_resident_id,omitempty"`                    // 可选，如不提供则会通知所有关联的居民
-		Timestamp    int64  `json:"timestamp,omitempty" example:"1651234567890"`     // 可选时间戳
+		DeviceID      string `json:"device_device_id" binding:"required" example:"1"` // 使用与MQTT通讯中相同的字段名
+		HouseholdID   string `json:"household_id,omitempty" example:"1"`              // 可选，指定户号ID
+		TargetUserID  string `json:"target_resident_id,omitempty"`                    // 可选，如不提供则会通知所有关联的居民
+		ResidentPhone string `json:"resident_phone,omitempty" example:"13800138000"`  // 可选，通过住户电话呼叫
+		Timestamp     int64  `json:"timestamp,omitempty" example:"1651234567890"`     // 可选时间戳
 	}
 
 	// CallActionRequest 通话控制请求
@@ -89,21 +92,21 @@ type (
 
 	// TRTCInfo 腾讯云RTC信息
 	TRTCInfo struct {
-		SDKAppID    int    `json:"sdk_app_id" example:"1400000001"`
-		UserID      string `json:"user_id" example:"device_1"`
-		UserSig     string `json:"user_sig" example:"eJwtzM1Og0AUhmG..."`
-		RoomID      string `json:"room_id" example:"call_room_12345"`
-		RoomIDType  string `json:"room_id_type" example:"string"`
+		SDKAppID   int    `json:"sdk_app_id" example:"1400000001"`
+		UserID     string `json:"user_id" example:"device_1"`
+		UserSig    string `json:"user_sig" example:"eJwtzM1Og0AUhmG..."`
+		RoomID     string `json:"room_id" example:"call_room_12345"`
+		RoomIDType string `json:"room_id_type" example:"string"`
 	}
 
 	// InitiateCallResponse 发起通话响应
 	InitiateCallResponse struct {
-		CallID           string     `json:"call_id" example:"call-20250510-abcdef123456"`
-		DeviceID         string     `json:"device_device_id" example:"1"`
-		TargetResidentIDs []string   `json:"target_resident_ids" example:"[\"2\",\"3\"]"`
-		CallInfo         *CallInfo   `json:"call_info,omitempty"`
-		TencentRTC       *TRTCInfo   `json:"tencen_rtc,omitempty"`
-		Timestamp        int64       `json:"timestamp" example:"1651234567890"`
+		CallID            string    `json:"call_id" example:"call-20250510-abcdef123456"`
+		DeviceID          string    `json:"device_device_id" example:"1"`
+		TargetResidentIDs []string  `json:"target_resident_ids" example:"[\"2\",\"3\"]"`
+		CallInfo          *CallInfo `json:"call_info,omitempty"`
+		TencentRTC        *TRTCInfo `json:"tencen_rtc,omitempty"`
+		Timestamp         int64     `json:"timestamp" example:"1651234567890"`
 	}
 
 	// CallInfo 通话信息
@@ -147,11 +150,11 @@ func HandleMQTTCallFunc(container *container.ServiceContainer, method string) gi
 
 // 1. InitiateCall 发起通话
 // @Summary      发起MQTT通话
-// @Description  通过MQTT向关联设备的所有居民发起视频通话请求
+// @Description  通过MQTT向设备或住户发起视频通话请求，支持三种调用方式：1.通过住户电话呼叫；2.通过指定户号呼叫；3.通过设备关联的户号呼叫
 // @Tags         MQTT
 // @Accept       json
 // @Produce      json
-// @Param        request body InitiateCallRequest true "通话请求参数"
+// @Param        request body InitiateCallRequest true "通话请求参数：支持device_device_id(必填)、household_id(可选)、target_resident_id(可选)、resident_phone(可选)参数"
 // @Success      200  {object}  InitiateCallResponse
 // @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -164,19 +167,25 @@ func (c *MQTTCallController) InitiateCall() {
 	}
 
 	mqttCallService := c.Container.GetService("mqtt_call").(services.InterfaceMQTTCallService)
-	
+
 	var callID string
 	var err error
 	var targetResidentIDs []string
 
-	// 如果提供了特定的目标居民ID，就只向该居民发起呼叫
-	if req.TargetUserID != "" {
+	// 如果提供了住户电话，通过电话查找并呼叫该住户
+	if req.ResidentPhone != "" {
+		callID, targetResidentIDs, err = mqttCallService.InitiateCallByPhone(req.DeviceID, req.ResidentPhone)
+	} else if req.TargetUserID != "" {
+		// 如果提供了特定的目标居民ID，就只向该居民发起呼叫
 		callID, err = mqttCallService.InitiateCall(req.DeviceID, req.TargetUserID)
 		if err == nil {
 			targetResidentIDs = []string{req.TargetUserID}
 		}
+	} else if req.HouseholdID != "" {
+		// 如果提供了户号ID，向该户号下的所有居民发起呼叫
+		callID, targetResidentIDs, err = mqttCallService.InitiateCallToHousehold(req.DeviceID, req.HouseholdID)
 	} else {
-		// 否则，向关联该设备的所有居民发起呼叫
+		// 否则，向关联该设备的户号下的所有居民发起呼叫
 		callID, targetResidentIDs, err = mqttCallService.InitiateCallToAll(req.DeviceID)
 	}
 
@@ -193,8 +202,8 @@ func (c *MQTTCallController) InitiateCall() {
 
 	// 创建响应
 	response := InitiateCallResponse{
-		CallID:           callID,
-		DeviceID:         req.DeviceID,
+		CallID:            callID,
+		DeviceID:          req.DeviceID,
 		TargetResidentIDs: targetResidentIDs,
 		CallInfo: &CallInfo{
 			CallID:    callID,
@@ -205,20 +214,20 @@ func (c *MQTTCallController) InitiateCall() {
 	}
 
 	// 如果系统配置了腾讯云RTC，添加RTC信息
-	config := c.Container.GetConfig()
+	config := c.Container.GetService("config").(*config.Config)
 	if config.TencentRTCEnabled {
 		// 获取RTC服务
 		rtcService := c.Container.GetService("tencent_rtc").(services.InterfaceTencentRTCService)
-		
+
 		// 为设备生成UserSig
 		deviceUserID := "device_" + req.DeviceID
-		userSig, err := rtcService.GenUserSig(deviceUserID)
+		tokenInfo, err := rtcService.GetUserSig(deviceUserID)
 		if err == nil {
 			response.TencentRTC = &TRTCInfo{
 				SDKAppID:   config.TencentSDKAppID,
 				UserID:     deviceUserID,
-				UserSig:    userSig,
-				RoomID:     callID,  // 使用callID作为房间ID
+				UserSig:    tokenInfo.UserSig,
+				RoomID:     callID, // 使用callID作为房间ID
 				RoomIDType: "string",
 			}
 		}
@@ -229,11 +238,11 @@ func (c *MQTTCallController) InitiateCall() {
 
 // 2. CallerAction 处理呼叫方动作
 // @Summary      处理MQTT呼叫方动作
-// @Description  处理设备端通话动作(挂断、取消等)
+// @Description  处理设备端通话动作，支持的动作类型包括：hangup(挂断)、cancelled(取消呼叫)
 // @Tags         MQTT
 // @Accept       json
 // @Produce      json
-// @Param        request body CallActionRequest true "设备通话动作请求"
+// @Param        request body CallActionRequest true "设备通话动作请求，包含call_id和action字段"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -263,11 +272,11 @@ func (c *MQTTCallController) CallerAction() {
 
 // 3. CalleeAction 处理被呼叫方动作
 // @Summary      处理MQTT被呼叫方动作
-// @Description  处理居民端通话动作(接听、拒绝、挂断、超时等)
+// @Description  处理居民端通话动作，支持的动作类型包括：rejected(拒绝)、answered(接听)、hangup(挂断)、timeout(超时)
 // @Tags         MQTT
 // @Accept       json
 // @Produce      json
-// @Param        request body CallActionRequest true "居民通话动作请求"
+// @Param        request body CallActionRequest true "居民通话动作请求，包含call_id、action和可选的reason字段"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -297,11 +306,11 @@ func (c *MQTTCallController) CalleeAction() {
 
 // 4. GetCallSession 获取通话会话
 // @Summary      获取MQTT通话会话
-// @Description  获取通话会话信息及TRTC房间详情
+// @Description  获取通话会话信息及TRTC房间详情，包括设备ID、住户ID、通话状态、开始时间等
 // @Tags         MQTT
 // @Accept       json
 // @Produce      json
-// @Param        call_id query string true "通话会话ID"
+// @Param        call_id query string true "通话会话ID" example:"call-20250510-abcdef123456"
 // @Success      200  {object}  CallSessionResponse
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -331,20 +340,20 @@ func (c *MQTTCallController) GetCallSession() {
 	}
 
 	// 如果系统配置了腾讯云RTC，添加RTC信息
-	config := c.Container.GetConfig()
+	config := c.Container.GetService("config").(*config.Config)
 	if config.TencentRTCEnabled {
 		// 获取RTC服务
 		rtcService := c.Container.GetService("tencent_rtc").(services.InterfaceTencentRTCService)
-		
+
 		// 为设备生成UserSig
 		deviceUserID := "device_" + session.DeviceID
-		userSig, err := rtcService.GenUserSig(deviceUserID)
+		tokenInfo, err := rtcService.GetUserSig(deviceUserID)
 		if err == nil {
 			response.TencentRTC = &TRTCInfo{
 				SDKAppID:   config.TencentSDKAppID,
 				UserID:     deviceUserID,
-				UserSig:    userSig,
-				RoomID:     session.CallID,  // 使用callID作为房间ID
+				UserSig:    tokenInfo.UserSig,
+				RoomID:     session.CallID, // 使用callID作为房间ID
 				RoomIDType: "string",
 			}
 		}
@@ -355,11 +364,11 @@ func (c *MQTTCallController) GetCallSession() {
 
 // 5. EndCallSession 结束通话会话
 // @Summary      结束MQTT通话会话
-// @Description  强制结束通话会话并通知所有参与方
+// @Description  强制结束通话会话并通知所有参与方，适用于系统管理或异常情况下的通话强制终止
 // @Tags         MQTT
 // @Accept       json
 // @Produce      json
-// @Param        request body EndCallSessionRequest true "结束通话会话请求"
+// @Param        request body EndCallSessionRequest true "结束通话会话请求，包含call_id和可选的reason字段"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse
@@ -382,11 +391,11 @@ func (c *MQTTCallController) EndCallSession() {
 
 // 6. PublishDeviceStatus 发布设备状态
 // @Summary      更新设备状态
-// @Description  更新设备状态信息，包括在线状态、电池电量和其他自定义属性，无需MQTT连接
+// @Description  更新设备状态信息，包括在线状态、电池电量和其他自定义属性，无需MQTT连接，系统会通过MQTT推送给相关订阅方
 // @Tags         Device
 // @Accept       json
 // @Produce      json
-// @Param        request body PublishDeviceStatusRequest true "设备状态信息：包含设备ID、在线状态、电池电量等"
+// @Param        request body PublishDeviceStatusRequest true "设备状态信息：必须包含device_id、online、battery字段，可选包含properties自定义属性"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse
@@ -418,11 +427,11 @@ func (c *MQTTCallController) PublishDeviceStatus() {
 
 // 7. PublishSystemMessage 发布系统消息
 // @Summary      发布系统消息
-// @Description  通过MQTT发布系统消息
+// @Description  通过MQTT发布系统消息，支持info、warning、error三种级别，消息会推送给所有订阅相关主题的客户端
 // @Tags         MQTT
 // @Accept       json
 // @Produce      json
-// @Param        request body PublishSystemMessageRequest true "系统消息信息"
+// @Param        request body PublishSystemMessageRequest true "系统消息信息：必须包含type、level、message字段，level支持info、warning、error三种级别"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  ErrorResponse
 // @Failure      500  {object}  ErrorResponse

@@ -39,6 +39,8 @@ type ServiceContainer struct {
 	staffService      services.InterfaceStaffService
 	callRecordService services.InterfaceCallRecordService
 	emergencyService  services.InterfaceEmergencyService
+	buildingService   services.InterfaceBuildingService
+	householdService  services.InterfaceHouseholdService
 
 	mu sync.RWMutex
 }
@@ -102,6 +104,10 @@ func (c *ServiceContainer) initializeServices() {
 	c.staffService = services.NewStaffService(c.db, c.config)
 	c.callRecordService = services.NewCallRecordService(c.db, c.config)
 	c.emergencyService = services.NewEmergencyService(c.db, c.config)
+
+	// 初始化楼号和户号服务
+	c.buildingService = services.NewBuildingService(c.db, c.config)
+	c.householdService = services.NewHouseholdService(c.db, c.config)
 }
 
 // GetService 获取指定名称的服务
@@ -110,6 +116,10 @@ func (c *ServiceContainer) GetService(name string) interface{} {
 	defer c.mu.RUnlock()
 
 	switch name {
+	case "config":
+		return c.config
+	case "db":
+		return c.db
 	case "jwt":
 		return c.jwtService
 	case "rtc":
@@ -132,6 +142,10 @@ func (c *ServiceContainer) GetService(name string) interface{} {
 		return c.callRecordService
 	case "emergency":
 		return c.emergencyService
+	case "building":
+		return c.buildingService
+	case "household":
+		return c.householdService
 	default:
 		return nil
 	}

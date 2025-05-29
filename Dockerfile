@@ -8,6 +8,11 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
 
+# 添加版本信息
+LABEL version="1.1.0"
+LABEL description="ILock HTTP Service with MQTT Call Support"
+LABEL maintainer="Stone Sea"
+
 WORKDIR /app
 
 # Copy go.mod and go.sum
@@ -26,6 +31,11 @@ RUN go build -o ilock_http_service
 FROM alpine:latest
 
 WORKDIR /app
+
+# 添加版本信息到最终镜像
+LABEL version="1.1.0"
+LABEL description="ILock HTTP Service with MQTT Call Support"
+LABEL maintainer="Stone Sea"
 
 # 安装必要的运行时依赖
 RUN apk --no-cache add ca-certificates tzdata

@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 type PaginationQuery struct {
 	PageNum  int  `form:"pageNum" json:"pageNum"`
 	PageSize int  `form:"pageSize" json:"pageSize"`
@@ -10,6 +12,12 @@ type PaginationResult struct {
 	Total    int `form:"total" json:"total"`
 	PageNum  int `form:"pageNum" json:"pageNum"`
 	PageSize int `form:"pageSize" json:"pageSize"`
+}
+
+type BaseModel struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // NewPaginationResult 创建一个新的分页结果对象

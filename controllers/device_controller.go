@@ -6,6 +6,7 @@ import (
 	"ilock-http-service/services/container"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -20,6 +21,10 @@ type InterfaceDeviceController interface {
 	DeleteDevice()
 	GetDeviceStatus()
 	CheckDeviceHealth()
+	AssociateDeviceWithBuilding()
+	AssociateDeviceWithHousehold()
+	GetDeviceHouseholds()
+	RemoveDeviceHouseholdAssociation()
 }
 
 // DeviceController 处理设备相关的请求
@@ -42,7 +47,7 @@ type DeviceRequest struct {
 	SerialNumber string `json:"serial_number" binding:"required" example:"SN2024050001"`
 	Status       string `json:"status" example:"online"` // online, offline, fault
 	Location     string `json:"location" example:"小区北门入口"`
-	StaffIDs     []uint `json:"staff_ids" example:"[1,2]"` // 关联的物业员工ID列表
+	StaffIDs     []uint `json:"staff_ids" example:"1,2"` // 关联的物业员工ID列表
 }
 
 // DeviceRequestInput 表示新版设备请求结构
@@ -51,7 +56,19 @@ type DeviceRequestInput struct {
 	SerialNumber string `json:"serial_number" binding:"required" example:"SN12345678"`
 	Status       string `json:"status" example:"online"` // online, offline, fault
 	Location     string `json:"location" example:"小区北门入口"`
-	StaffIDs     []uint `json:"staff_ids" example:"[1,2,3]"` // 关联的物业员工ID列表
+	BuildingID   uint   `json:"building_id" example:"1"`     // 关联的楼号ID
+	HouseholdIDs []uint `json:"household_ids" example:"1,2"` // 关联的户号ID列表
+	StaffIDs     []uint `json:"staff_ids" example:"1,2,3"`   // 关联的物业员工ID列表
+}
+
+// DeviceBuildingRequest 设备关联楼号请求
+type DeviceBuildingRequest struct {
+	BuildingID uint `json:"building_id" binding:"required" example:"1"`
+}
+
+// DeviceHouseholdRequest 设备关联户号请求
+type DeviceHouseholdRequest struct {
+	HouseholdID uint `json:"household_id" binding:"required" example:"1"`
 }
 
 // DeviceHealthRequest 设备健康检测请求
@@ -87,6 +104,14 @@ func HandleDeviceFunc(container *container.ServiceContainer, method string) gin.
 			controller.GetDeviceStatus()
 		case "checkDeviceHealth":
 			controller.CheckDeviceHealth()
+		case "associateDeviceWithBuilding":
+			controller.AssociateDeviceWithBuilding()
+		case "associateDeviceWithHousehold":
+			controller.AssociateDeviceWithHousehold()
+		case "getDeviceHouseholds":
+			controller.GetDeviceHouseholds()
+		case "removeDeviceHouseholdAssociation":
+			controller.RemoveDeviceHouseholdAssociation()
 		default:
 			ctx.JSON(http.StatusBadRequest, gin.H{
 				"code":    400,
@@ -99,19 +124,40 @@ func HandleDeviceFunc(container *container.ServiceContainer, method string) gin.
 
 // 1. GetDevices 获取所有设备列表
 // @Summary 获取所有设备
-// @Description 获取所有设备的列表
+// @Description 获取所有设备的列表，支持按楼号筛选
 // @Tags device
 // @Accept json
 // @Produce json
 // @Security BearerAuth
+// @Param building_id query int false "楼号ID"
 // @Success 200 {array} models.Device
 // @Failure 400 {object} ErrorResponse
 // @Failure 500 {object} ErrorResponse
 // @Router /devices [get]
 func (c *DeviceController) GetDevices() {
+	// 获取筛选参数
+	buildingIDStr := c.Ctx.Query("building_id")
+
+	var buildingID uint
+	if buildingIDStr != "" {
+		id, err := strconv.Atoi(buildingIDStr)
+		if err == nil && id > 0 {
+			buildingID = uint(id)
+		}
+	}
+
 	deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
 
-	devices, err := deviceService.GetAllDevices()
+	var devices []models.Device
+	var err error
+
+	// 根据筛选条件获取设备
+	if buildingID > 0 {
+		devices, err = deviceService.GetDevicesByBuilding(buildingID)
+	} else {
+		devices, err = deviceService.GetAllDevices()
+	}
+
 	if err != nil {
 		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -174,12 +220,12 @@ func (c *DeviceController) GetDevice() {
 
 // 3. CreateDevice 创建新设备
 // @Summary 创建新设备
-// @Description 创建一个新的门禁设备，需要提供设备名称、位置等基本信息，可选择关联物业员工
+// @Description 创建一个新的门禁设备，支持设备类型和关联
 // @Tags device
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param device body DeviceRequestInput true "设备信息：包含名称(必填)、安装位置、状态、关联员工ID列表等"
+// @Param device body DeviceRequestInput true "设备信息：包含名称、类型、位置、关联楼号/户号等"
 // @Success 201 {object} models.Device "成功创建的设备信息"
 // @Failure 400 {object} ErrorResponse "请求参数错误，如缺少必填字段或格式不正确"
 // @Failure 500 {object} ErrorResponse "服务器内部错误，可能是数据库操作失败等"
@@ -201,6 +247,11 @@ func (c *DeviceController) CreateDevice() {
 		Location:     req.Location,
 	}
 
+	// 设置关联的楼号
+	if req.BuildingID > 0 {
+		device.BuildingID = req.BuildingID
+	}
+
 	// 如果提供了状态，则设置状态
 	if req.Status != "" {
 		switch req.Status {
@@ -219,18 +270,21 @@ func (c *DeviceController) CreateDevice() {
 
 	deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
 
-	// 设置关联的物业员工(如果有提供)
-	if len(req.StaffIDs) > 0 {
-		if err := deviceService.AssociateDeviceWithStaff(device, req.StaffIDs); err != nil {
-			c.Ctx.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "关联物业员工失败: " + err.Error(),
+	// 如果提供了楼号ID，验证楼号是否存在
+	if req.BuildingID > 0 {
+		buildingService := c.Container.GetService("building").(services.InterfaceBuildingService)
+		_, err := buildingService.GetBuildingByID(req.BuildingID)
+		if err != nil {
+			c.Ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "关联的楼号不存在: " + err.Error(),
 				"data":    nil,
 			})
 			return
 		}
 	}
 
+	// 创建设备
 	if err := deviceService.CreateDevice(device); err != nil {
 		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
@@ -238,6 +292,31 @@ func (c *DeviceController) CreateDevice() {
 			"data":    nil,
 		})
 		return
+	}
+
+	// 如果提供了户号ID列表，关联户号
+	if len(req.HouseholdIDs) > 0 {
+		householdService := c.Container.GetService("household").(services.InterfaceHouseholdService)
+		for _, householdID := range req.HouseholdIDs {
+			if err := householdService.AssociateHouseholdWithDevice(householdID, device.ID); err != nil {
+				// 这里只记录错误，不中断流程
+				// TODO: 可以考虑更好的错误处理方式
+				c.Ctx.Error(err)
+			}
+		}
+	}
+
+	// 设置关联的物业员工(如果有提供)
+	if len(req.StaffIDs) > 0 {
+		for _, staffID := range req.StaffIDs {
+			updates := map[string]interface{}{
+				"property_id": staffID,
+			}
+			if _, err := deviceService.UpdateDevice(device.ID, updates); err != nil {
+				// 这里只记录错误，不中断流程
+				c.Ctx.Error(err)
+			}
+		}
 	}
 
 	c.Ctx.JSON(http.StatusCreated, gin.H{
@@ -249,17 +328,17 @@ func (c *DeviceController) CreateDevice() {
 
 // 4. UpdateDevice 更新设备信息
 // @Summary 更新设备信息
-// @Description 根据ID更新设备信息，可以修改名称、位置、状态等属性，也可以重新关联物业员工
+// @Description 根据ID更新设备信息，支持更新关联
 // @Tags device
 // @Accept json
 // @Produce json
 // @Security BearerAuth
 // @Param id path string true "设备ID"
-// @Param device body DeviceRequestInput true "设备信息：包含名称、位置、状态等需要更新的字段"
+// @Param device body DeviceRequestInput true "设备信息：包含需要更新的字段"
 // @Success 200 {object} models.Device "更新后的设备信息"
-// @Failure 400 {object} ErrorResponse "请求参数错误，如ID格式不正确或请求体格式错误"
+// @Failure 400 {object} ErrorResponse "请求参数错误"
 // @Failure 404 {object} ErrorResponse "设备不存在"
-// @Failure 500 {object} ErrorResponse "服务器内部错误，可能是数据库操作失败等"
+// @Failure 500 {object} ErrorResponse "服务器内部错误"
 // @Router /devices/{id} [put]
 func (c *DeviceController) UpdateDevice() {
 	id := c.Ctx.Param("id")
@@ -285,9 +364,29 @@ func (c *DeviceController) UpdateDevice() {
 
 	// 创建更新映射
 	updates := make(map[string]interface{})
-	updates["name"] = req.Name
-	updates["serial_number"] = req.SerialNumber
-	updates["location"] = req.Location
+	if req.Name != "" {
+		updates["name"] = req.Name
+	}
+	if req.SerialNumber != "" {
+		updates["serial_number"] = req.SerialNumber
+	}
+	if req.Location != "" {
+		updates["location"] = req.Location
+	}
+	if req.BuildingID > 0 {
+		// 验证楼号是否存在
+		buildingService := c.Container.GetService("building").(services.InterfaceBuildingService)
+		_, err := buildingService.GetBuildingByID(req.BuildingID)
+		if err != nil {
+			c.Ctx.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "关联的楼号不存在: " + err.Error(),
+				"data":    nil,
+			})
+			return
+		}
+		updates["building_id"] = req.BuildingID
+	}
 
 	// 处理状态更新
 	if req.Status != "" {
@@ -303,18 +402,7 @@ func (c *DeviceController) UpdateDevice() {
 
 	deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
 
-	// 更新关联的物业员工(如果有提供)
-	if len(req.StaffIDs) > 0 {
-		if err := deviceService.UpdateDeviceStaffAssociation(uint(deviceID), req.StaffIDs); err != nil {
-			c.Ctx.JSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "更新物业员工关联失败: " + err.Error(),
-				"data":    nil,
-			})
-			return
-		}
-	}
-
+	// 更新设备基本信息
 	device, err := deviceService.UpdateDevice(uint(deviceID), updates)
 	if err != nil {
 		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
@@ -323,6 +411,45 @@ func (c *DeviceController) UpdateDevice() {
 			"data":    nil,
 		})
 		return
+	}
+
+	// 如果提供了户号ID列表，更新关联
+	if len(req.HouseholdIDs) > 0 {
+		// 先清除现有关联
+		householdService := c.Container.GetService("household").(services.InterfaceHouseholdService)
+
+		// 获取当前关联的户号
+		households, err := deviceService.GetDeviceHouseholds(uint(deviceID))
+		if err != nil {
+			c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "获取设备关联户号失败: " + err.Error(),
+				"data":    nil,
+			})
+			return
+		}
+
+		// 清除现有关联
+		for _, household := range households {
+			if err := householdService.RemoveHouseholdDeviceAssociation(household.ID, uint(deviceID)); err != nil {
+				// 这里只记录错误，不中断流程
+				c.Ctx.Error(err)
+			}
+		}
+
+		// 添加新关联
+		for _, householdID := range req.HouseholdIDs {
+			if err := householdService.AssociateHouseholdWithDevice(householdID, uint(deviceID)); err != nil {
+				// 这里只记录错误，不中断流程
+				c.Ctx.Error(err)
+			}
+		}
+	}
+
+	// 更新关联的物业员工(如果有提供)
+	if len(req.StaffIDs) > 0 {
+		// 这里需要实现物业员工关联更新逻辑
+		// TODO: 实现物业员工关联更新
 	}
 
 	c.Ctx.JSON(http.StatusOK, gin.H{
@@ -475,7 +602,7 @@ func (c *DeviceController) CheckDeviceHealth() {
 	deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
 
 	// 检查设备是否存在
-	device, err := deviceService.GetDeviceByID(uint(deviceID))
+	_, err = deviceService.GetDeviceByID(uint(deviceID))
 	if err != nil {
 		c.Ctx.JSON(http.StatusNotFound, gin.H{
 			"code":    404,
@@ -486,8 +613,12 @@ func (c *DeviceController) CheckDeviceHealth() {
 	}
 
 	// 更新设备状态为在线
-	device.Status = models.DeviceStatusOnline
-	if err := deviceService.UpdateDevice(device); err != nil {
+	updates := map[string]interface{}{
+		"status": models.DeviceStatusOnline,
+	}
+
+	_, err = deviceService.UpdateDevice(uint(deviceID), updates)
+	if err != nil {
 		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
 			"message": "更新设备状态失败: " + err.Error(),
@@ -502,7 +633,268 @@ func (c *DeviceController) CheckDeviceHealth() {
 		"data": gin.H{
 			"device_id": req.DeviceID,
 			"status":    "online",
-			"timestamp": models.CurrentTime(),
+			"timestamp": time.Now(),
 		},
+	})
+}
+
+// 8. AssociateDeviceWithBuilding 将设备关联到楼号
+// @Summary 关联设备与楼号
+// @Description 将指定设备关联到楼号
+// @Tags device
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "设备ID"
+// @Param request body DeviceBuildingRequest true "楼号信息"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /devices/{id}/building [post]
+func (c *DeviceController) AssociateDeviceWithBuilding() {
+	id := c.Ctx.Param("id")
+	deviceID, err := strconv.Atoi(id)
+	if err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的设备ID",
+			"data":    nil,
+		})
+		return
+	}
+
+	var req DeviceBuildingRequest
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的请求参数: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 验证楼号是否存在
+	buildingService := c.Container.GetService("building").(services.InterfaceBuildingService)
+	_, err = buildingService.GetBuildingByID(req.BuildingID)
+	if err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "楼号不存在: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 更新设备关联的楼号
+	deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
+	updates := map[string]interface{}{
+		"building_id": req.BuildingID,
+	}
+
+	device, err := deviceService.UpdateDevice(uint(deviceID), updates)
+	if err != nil {
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "关联设备与楼号失败: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	c.Ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "设备与楼号关联成功",
+		"data":    device,
+	})
+}
+
+// 9. AssociateDeviceWithHousehold 将设备关联到户号
+// @Summary 关联设备与户号
+// @Description 将指定设备关联到户号
+// @Tags device
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "设备ID"
+// @Param request body DeviceHouseholdRequest true "户号信息"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /devices/{id}/households [post]
+func (c *DeviceController) AssociateDeviceWithHousehold() {
+	id := c.Ctx.Param("id")
+	deviceID, err := strconv.Atoi(id)
+	if err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的设备ID",
+			"data":    nil,
+		})
+		return
+	}
+
+	var req DeviceHouseholdRequest
+	if err := c.Ctx.ShouldBindJSON(&req); err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的请求参数: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 验证设备是否存在
+	deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
+	_, err = deviceService.GetDeviceByID(uint(deviceID))
+	if err != nil {
+		c.Ctx.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "设备不存在: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 关联设备到户号
+	householdService := c.Container.GetService("household").(services.InterfaceHouseholdService)
+	if err := householdService.AssociateHouseholdWithDevice(req.HouseholdID, uint(deviceID)); err != nil {
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "关联设备与户号失败: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	c.Ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "设备与户号关联成功",
+		"data":    nil,
+	})
+}
+
+// 10. GetDeviceHouseholds 获取设备关联的户号
+// @Summary 获取设备关联的户号
+// @Description 获取指定设备关联的所有户号
+// @Tags device
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "设备ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /devices/{id}/households [get]
+func (c *DeviceController) GetDeviceHouseholds() {
+	id := c.Ctx.Param("id")
+	deviceID, err := strconv.Atoi(id)
+	if err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的设备ID",
+			"data":    nil,
+		})
+		return
+	}
+
+	// 验证设备是否存在
+	deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
+	_, err = deviceService.GetDeviceByID(uint(deviceID))
+	if err != nil {
+		c.Ctx.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "设备不存在: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 获取设备关联的户号
+	households, err := deviceService.GetDeviceHouseholds(uint(deviceID))
+	if err != nil {
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "获取设备关联户号失败: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	c.Ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "成功",
+		"data":    households,
+	})
+}
+
+// 11. RemoveDeviceHouseholdAssociation 解除设备与户号的关联
+// @Summary 解除设备与户号的关联
+// @Description 解除指定设备与户号的关联
+// @Tags device
+// @Accept json
+// @Produce json
+// @Security BearerAuth
+// @Param id path int true "设备ID"
+// @Param household_id path int true "户号ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} ErrorResponse
+// @Failure 404 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /devices/{id}/households/{household_id} [delete]
+func (c *DeviceController) RemoveDeviceHouseholdAssociation() {
+	// 获取设备ID
+	id := c.Ctx.Param("id")
+	deviceID, err := strconv.Atoi(id)
+	if err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的设备ID",
+			"data":    nil,
+		})
+		return
+	}
+
+	// 获取户号ID
+	householdIDStr := c.Ctx.Param("household_id")
+	householdID, err := strconv.Atoi(householdIDStr)
+	if err != nil {
+		c.Ctx.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "无效的户号ID",
+			"data":    nil,
+		})
+		return
+	}
+
+	// 验证设备是否存在
+	deviceService := c.Container.GetService("device").(services.InterfaceDeviceService)
+	_, err = deviceService.GetDeviceByID(uint(deviceID))
+	if err != nil {
+		c.Ctx.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "设备不存在: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	// 解除设备与户号的关联
+	householdService := c.Container.GetService("household").(services.InterfaceHouseholdService)
+	if err := householdService.RemoveHouseholdDeviceAssociation(uint(householdID), uint(deviceID)); err != nil {
+		c.Ctx.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "解除设备与户号关联失败: " + err.Error(),
+			"data":    nil,
+		})
+		return
+	}
+
+	c.Ctx.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "设备与户号关联已解除",
+		"data":    nil,
 	})
 }

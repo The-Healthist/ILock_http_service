@@ -6,7 +6,7 @@ import (
 
 // EmergencyAlarm 表示紧急警报信息
 type EmergencyAlarm struct {
-	ID          uint       `gorm:"primaryKey" json:"id"`
+	BaseModel
 	Type        string     `gorm:"type:varchar(30);not null" json:"type"` // 如：fire(火灾)、intrusion(入侵)、medical(医疗)等
 	Location    string     `gorm:"type:varchar(100);not null" json:"location"`
 	Description string     `gorm:"type:text" json:"description"`
@@ -17,6 +17,4 @@ type EmergencyAlarm struct {
 	ResolvedBy  *uint      `json:"resolved_by,omitempty"`
 	Resolution  string     `gorm:"type:text" json:"resolution,omitempty"`
 	PropertyID  *uint      `json:"property_id,omitempty"` // 可为空，非外键
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
 }

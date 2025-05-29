@@ -11,6 +11,7 @@ import (
 // InterfaceDeviceService defines the device service interface
 type InterfaceDeviceService interface {
 	GetAllDevices() ([]models.Device, error)
+	GetDevicesByBuilding(buildingID uint) ([]models.Device, error)
 	GetDeviceByID(id uint) (*models.Device, error)
 	CreateDevice(device *models.Device) error
 	UpdateDevice(id uint, updates map[string]interface{}) (*models.Device, error)
@@ -19,6 +20,8 @@ type InterfaceDeviceService interface {
 	UpdateDeviceConfiguration(id uint, config map[string]interface{}) error
 	RebootDevice(id uint) error
 	UnlockDevice(id uint) error
+	GetDeviceHouseholds(deviceID uint) ([]models.Household, error)
+	GetDeviceBuilding(deviceID uint) (*models.Building, error)
 }
 
 // DeviceService 提供设备相关的服务
@@ -38,7 +41,17 @@ func NewDeviceService(db *gorm.DB, cfg *config.Config) InterfaceDeviceService {
 // 1 GetAllDevices 获取所有设备列表
 func (s *DeviceService) GetAllDevices() ([]models.Device, error) {
 	var devices []models.Device
-	if err := s.DB.Preload("Staff").Find(&devices).Error; err != nil {
+	if err := s.DB.Preload("Staff").Preload("Building").Find(&devices).Error; err != nil {
+		return nil, err
+	}
+
+	return devices, nil
+}
+
+// 1.2 GetDevicesByBuilding 根据楼号获取设备列表
+func (s *DeviceService) GetDevicesByBuilding(buildingID uint) ([]models.Device, error) {
+	var devices []models.Device
+	if err := s.DB.Where("building_id = ?", buildingID).Preload("Staff").Preload("Building").Find(&devices).Error; err != nil {
 		return nil, err
 	}
 
@@ -48,7 +61,7 @@ func (s *DeviceService) GetAllDevices() ([]models.Device, error) {
 // 2 GetDeviceByID 根据ID获取设备
 func (s *DeviceService) GetDeviceByID(id uint) (*models.Device, error) {
 	var device models.Device
-	if err := s.DB.Preload("Staff").First(&device, id).Error; err != nil {
+	if err := s.DB.Preload("Staff").Preload("Building").Preload("Households").First(&device, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errors.New("设备不存在")
 		}
@@ -109,6 +122,12 @@ func (s *DeviceService) DeleteDevice(id uint) error {
 	if err != nil {
 		return err
 	}
+
+	// 删除设备与户号的关联关系
+	if err := s.DB.Exec("DELETE FROM household_device_relations WHERE device_id = ?", id).Error; err != nil {
+		return err
+	}
+
 	return s.DB.Delete(device).Error
 }
 
@@ -150,4 +169,44 @@ func (s *DeviceService) UnlockDevice(id uint) error {
 	}
 	// TODO: 与硬件集成，发送开门指令
 	return errors.New("功能尚未实现，需要硬件集成")
+}
+
+// 10 GetDeviceHouseholds 获取设备关联的户号
+func (s *DeviceService) GetDeviceHouseholds(deviceID uint) ([]models.Household, error) {
+	// 检查设备是否存在
+	device, err := s.GetDeviceByID(deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	var households []models.Household
+	if err := s.DB.Model(device).Association("Households").Find(&households); err != nil {
+		return nil, err
+	}
+
+	return households, nil
+}
+
+// 11 GetDeviceBuilding 获取设备所属的楼号
+func (s *DeviceService) GetDeviceBuilding(deviceID uint) (*models.Building, error) {
+	// 检查设备是否存在
+	device, err := s.GetDeviceByID(deviceID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 如果设备没有关联楼号
+	if device.BuildingID == 0 {
+		return nil, errors.New("设备未关联楼号")
+	}
+
+	var building models.Building
+	if err := s.DB.First(&building, device.BuildingID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("关联的楼号不存在")
+		}
+		return nil, err
+	}
+
+	return &building, nil
 }
