@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"ilock-http-service/config"
 	"ilock-http-service/services"
 	"ilock-http-service/services/container"
@@ -46,7 +47,10 @@ type (
 
 	// CallActionRequest 通话控制请求
 	CallActionRequest struct {
-		CallInfo *CallInfo `json:"call_info" binding:"required"`
+		Action    string `json:"action" binding:"required" example:"answered"`
+		CallID    string `json:"call_id" binding:"required" example:"call-20250510-abcdef123456"`
+		Timestamp int64  `json:"timestamp,omitempty" example:"1651234567890"`
+		Reason    string `json:"reason,omitempty" example:"user_busy"`
 	}
 
 	// GetCallSessionRequest 获取通话会话请求
@@ -100,11 +104,11 @@ type (
 	// InitiateCallResponse 发起通话响应
 	InitiateCallResponse struct {
 		CallID            string    `json:"call_id" example:"call-20250510-abcdef123456"`
-		DeviceID          string    `json:"device_id" example:"1"`
+		DeviceDeviceID    string    `json:"device_device_id" example:"1"`
 		TargetResidentIDs []string  `json:"target_resident_ids" example:"[\"2\",\"3\"]"`
-		CallInfo          *CallInfo `json:"call_info,omitempty"`
-		TencentRTC        *TRTCInfo `json:"tencen_rtc,omitempty"`
 		Timestamp         int64     `json:"timestamp" example:"1651234567890"`
+		TencentRTC        *TRTCInfo `json:"tencen_rtc,omitempty"`
+		CallInfo          *CallInfo `json:"call_info,omitempty"`
 	}
 
 	// CallInfo 通话信息
@@ -184,7 +188,7 @@ func (c *MQTTCallController) InitiateCall() {
 	}
 
 	// 使用当前时间戳或者请求中提供的时间戳
-	timestamp := time.Now().Unix()
+	timestamp := time.Now().UnixMilli()
 	if req.Timestamp > 0 {
 		timestamp = req.Timestamp
 	}
@@ -192,14 +196,14 @@ func (c *MQTTCallController) InitiateCall() {
 	// 创建响应
 	response := InitiateCallResponse{
 		CallID:            callID,
-		DeviceID:          req.DeviceID,
+		DeviceDeviceID:    req.DeviceID,
 		TargetResidentIDs: targetResidentIDs,
+		Timestamp:         timestamp,
 		CallInfo: &CallInfo{
 			CallID:    callID,
-			Action:    "initiated",
+			Action:    "ringing",
 			Timestamp: timestamp,
 		},
-		Timestamp: timestamp,
 	}
 
 	// 如果系统配置了腾讯云RTC，添加RTC信息
@@ -209,14 +213,14 @@ func (c *MQTTCallController) InitiateCall() {
 		rtcService := c.Container.GetService("tencent_rtc").(services.InterfaceTencentRTCService)
 
 		// 为设备生成UserSig
-		deviceUserID := "device_" + req.DeviceID
+		deviceUserID := req.DeviceID
 		tokenInfo, err := rtcService.GetUserSig(deviceUserID)
 		if err == nil {
 			response.TencentRTC = &TRTCInfo{
 				SDKAppID:   config.TencentSDKAppID,
 				UserID:     deviceUserID,
 				UserSig:    tokenInfo.UserSig,
-				RoomID:     callID, // 使用callID作为房间ID
+				RoomID:     "room_" + req.DeviceID + "_" + targetResidentIDs[0] + "_" + fmt.Sprintf("%d", timestamp/1000),
 				RoomIDType: "string",
 			}
 		}
@@ -245,13 +249,13 @@ func (c *MQTTCallController) CallerAction() {
 
 	// 验证动作类型
 	validActions := map[string]bool{"hangup": true, "cancelled": true}
-	if !validActions[req.CallInfo.Action] {
+	if !validActions[req.Action] {
 		c.HandleError(http.StatusBadRequest, "不支持的动作类型", nil)
 		return
 	}
 
 	mqttCallService := c.Container.GetService("mqtt_call").(services.InterfaceMQTTCallService)
-	if err := mqttCallService.HandleCallerAction(req.CallInfo.CallID, req.CallInfo.Action, req.CallInfo.Reason); err != nil {
+	if err := mqttCallService.HandleCallerAction(req.CallID, req.Action, req.Reason); err != nil {
 		c.HandleError(http.StatusInternalServerError, "处理呼叫方动作失败", err)
 		return
 	}
@@ -279,13 +283,13 @@ func (c *MQTTCallController) CalleeAction() {
 
 	// 验证动作类型
 	validActions := map[string]bool{"rejected": true, "answered": true, "hangup": true, "timeout": true}
-	if !validActions[req.CallInfo.Action] {
+	if !validActions[req.Action] {
 		c.HandleError(http.StatusBadRequest, "不支持的动作类型", nil)
 		return
 	}
 
 	mqttCallService := c.Container.GetService("mqtt_call").(services.InterfaceMQTTCallService)
-	if err := mqttCallService.HandleCalleeAction(req.CallInfo.CallID, req.CallInfo.Action, req.CallInfo.Reason); err != nil {
+	if err := mqttCallService.HandleCalleeAction(req.CallID, req.Action, req.Reason); err != nil {
 		c.HandleError(http.StatusInternalServerError, "处理被呼叫方动作失败", err)
 		return
 	}
@@ -439,13 +443,19 @@ func (c *MQTTCallController) PublishSystemMessage() {
 		return
 	}
 
+	// 使用当前时间戳或者请求中提供的时间戳
+	timestamp := time.Now().UnixMilli()
+	if req.Timestamp > 0 {
+		timestamp = req.Timestamp
+	}
+
 	mqttCallService := c.Container.GetService("mqtt_call").(services.InterfaceMQTTCallService)
 	message := map[string]interface{}{
 		"type":      req.Type,
 		"level":     req.Level,
 		"message":   req.Message,
 		"data":      req.Data,
-		"timestamp": time.Now().UnixMilli(),
+		"timestamp": timestamp,
 	}
 
 	if err := mqttCallService.PublishSystemMessage(req.Type, message); err != nil {

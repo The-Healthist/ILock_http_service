@@ -47,23 +47,17 @@ type MQTTCallService struct {
 
 // 主题常量
 const (
-	// 呼叫请求 (Caller -> Backend)
-	TopicCallRequestFormat = "calls/request/%s" // %s: caller_device_id
+	// 来电通知主题
+	TopicIncoming = "mqtt_call/incoming"
 
-	// 来电通知 (Backend -> Callee)
-	TopicIncomingCallFormat = "users/%s/calls/incoming" // %s: user_id
+	// 设备控制主题
+	TopicDeviceController = "mqtt_call/controller/device"
 
-	// 通话控制 (Backend -> Caller)
-	TopicCallerControlFormat = "devices/%s/calls/control" // %s: caller_device_id
+	// 住户控制主题
+	TopicResidentController = "mqtt_call/controller/resident"
 
-	// 通话控制 (Backend -> Callee)
-	TopicCalleeControlFormat = "users/%s/calls/control" // %s: user_id
-
-	// 设备状态 (Device -> Backend 或 Backend -> Device)
-	TopicDeviceStatusFormat = "devices/%s/status" // %s: device_id
-
-	// 系统消息 (Backend -> All)
-	TopicSystemMessageFormat = "system/%s" // %s: message_type
+	// 系统消息主题
+	TopicSystemMessage = "mqtt_call/system"
 )
 
 // 消息结构体定义
@@ -73,6 +67,23 @@ type (
 		Type      string         `json:"type"`
 		Timestamp int64          `json:"timestamp"`
 		Payload   map[string]any `json:"payload"`
+	}
+
+	// IncomingCallMessage 来电通知消息
+	IncomingCallMessage struct {
+		CallID           string   `json:"call_id"`
+		DeviceDeviceID   string   `json:"device_device_id"`
+		TargetResidentID string   `json:"target_resident_id"`
+		Timestamp        int64    `json:"timestamp"`
+		TencentRTC       TRTCInfo `json:"tencen_rtc"`
+	}
+
+	// ControlMessage 控制消息
+	ControlMessage struct {
+		Action    string `json:"action"`
+		CallID    string `json:"call_id"`
+		Timestamp int64  `json:"timestamp"`
+		Reason    string `json:"reason,omitempty"`
 	}
 
 	// CallRequest 呼叫请求结构
@@ -196,11 +207,11 @@ func (s *MQTTCallService) setupMQTTClient() {
 
 // setupTopicHandlers 设置主题处理程序
 func (s *MQTTCallService) setupTopicHandlers() {
-	// 呼叫请求处理程序
-	s.TopicHandlers["calls/request/+"] = s.handleCallRequest
-
-	// 设备状态处理程序
-	s.TopicHandlers["devices/+/status"] = s.handleDeviceStatus
+	s.TopicHandlers = map[string]mqtt.MessageHandler{
+		TopicDeviceController:   s.handleDeviceControl,
+		TopicResidentController: s.handleResidentControl,
+		TopicSystemMessage:      s.handleSystemMessage,
+	}
 }
 
 // Connect 连接到MQTT服务器
@@ -262,12 +273,12 @@ func (s *MQTTCallService) InitiateCall(deviceID, residentID string) (string, err
 	}
 
 	// 发送呼入通知给住户
-	incomingNotification := IncomingCallNotification{
-		CallID:       callID,
-		DeviceID:     deviceID,
-		TargetUserID: residentID,
-		Timestamp:    time.Now().UnixMilli(),
-		TRTCInfo: TRTCInfo{
+	incomingNotification := IncomingCallMessage{
+		CallID:           callID,
+		DeviceDeviceID:   deviceID,
+		TargetResidentID: residentID,
+		Timestamp:        time.Now().UnixMilli(),
+		TencentRTC: TRTCInfo{
 			RoomIDType: trtcInfo.RoomIDType,
 			RoomID:     trtcInfo.RoomID,
 			SDKAppID:   trtcInfo.SDKAppID,
@@ -277,8 +288,7 @@ func (s *MQTTCallService) InitiateCall(deviceID, residentID string) (string, err
 	}
 
 	// 发布到住户的呼入通知主题
-	incomingTopic := fmt.Sprintf(TopicIncomingCallFormat, residentID)
-	if err := s.publishMessage(incomingTopic, incomingNotification); err != nil {
+	if err := s.publishMessage(TopicIncoming, incomingNotification); err != nil {
 		// 发送失败，结束会话
 		s.CallManager.EndSession(callID, "发送通知失败")
 		return "", fmt.Errorf("发送呼入通知失败: %v", err)
@@ -288,13 +298,13 @@ func (s *MQTTCallService) InitiateCall(deviceID, residentID string) (string, err
 	s.CallManager.UpdateSessionStatus(callID, "ringing")
 
 	// 发送振铃控制消息给设备
-	callerControl := CallInfo{
+	callerControl := ControlMessage{
 		Action:    "ringing",
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 	}
-	callerTopic := fmt.Sprintf(TopicCallerControlFormat, deviceID)
-	if err := s.publishMessage(callerTopic, callerControl); err != nil {
+
+	if err := s.publishMessage(TopicDeviceController, callerControl); err != nil {
 		log.Printf("[MQTT] 发送振铃控制消息失败: %v", err)
 	}
 
@@ -307,7 +317,7 @@ func (s *MQTTCallService) InitiateCall(deviceID, residentID string) (string, err
 // HandleCallerAction 处理呼叫方动作
 func (s *MQTTCallService) HandleCallerAction(callID, action, reason string) error {
 	// 获取会话
-	session, exists := s.CallManager.GetSession(callID)
+	_, exists := s.CallManager.GetSession(callID)
 	if !exists {
 		return fmt.Errorf("会话不存在: %s", callID)
 	}
@@ -329,14 +339,14 @@ func (s *MQTTCallService) HandleCallerAction(callID, action, reason string) erro
 	}
 
 	// 发送控制消息给被呼叫方
-	calleeControl := CallInfo{
+	calleeControl := ControlMessage{
 		Action:    action,
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 		Reason:    reason,
 	}
-	calleeTopic := fmt.Sprintf(TopicCalleeControlFormat, session.ResidentID)
-	if err := s.publishMessage(calleeTopic, calleeControl); err != nil {
+
+	if err := s.publishMessage(TopicResidentController, calleeControl); err != nil {
 		log.Printf("[MQTT] 发送控制消息给被呼叫方失败: %v", err)
 	}
 
@@ -356,7 +366,7 @@ func (s *MQTTCallService) HandleCallerAction(callID, action, reason string) erro
 // HandleCalleeAction 处理被呼叫方动作
 func (s *MQTTCallService) HandleCalleeAction(callID, action, reason string) error {
 	// 获取会话
-	session, exists := s.CallManager.GetSession(callID)
+	_, exists := s.CallManager.GetSession(callID)
 	if !exists {
 		return fmt.Errorf("会话不存在: %s", callID)
 	}
@@ -382,14 +392,14 @@ func (s *MQTTCallService) HandleCalleeAction(callID, action, reason string) erro
 	}
 
 	// 发送控制消息给呼叫方
-	callerControl := CallInfo{
+	callerControl := ControlMessage{
 		Action:    action,
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 		Reason:    reason,
 	}
-	callerTopic := fmt.Sprintf(TopicCallerControlFormat, session.DeviceID)
-	if err := s.publishMessage(callerTopic, callerControl); err != nil {
+
+	if err := s.publishMessage(TopicDeviceController, callerControl); err != nil {
 		log.Printf("[MQTT] 发送控制消息给呼叫方失败: %v", err)
 	}
 
@@ -413,13 +423,12 @@ func (s *MQTTCallService) GetCallSession(callID string) (*models.CallSession, bo
 
 // EndCallSession 结束通话会话
 func (s *MQTTCallService) EndCallSession(callID, reason string) error {
-	session, err := s.CallManager.EndSession(callID, reason)
-	if err != nil {
+	if _, err := s.CallManager.EndSession(callID, reason); err != nil {
 		return err
 	}
 
 	// 向双方发送通话结束通知
-	endInfo := CallInfo{
+	endInfo := ControlMessage{
 		Action:    "ended",
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
@@ -427,14 +436,12 @@ func (s *MQTTCallService) EndCallSession(callID, reason string) error {
 	}
 
 	// 通知呼叫方
-	callerTopic := fmt.Sprintf(TopicCallerControlFormat, session.DeviceID)
-	if err := s.publishMessage(callerTopic, endInfo); err != nil {
+	if err := s.publishMessage(TopicDeviceController, endInfo); err != nil {
 		log.Printf("[MQTT] 发送结束通知给呼叫方失败: %v", err)
 	}
 
 	// 通知被呼叫方
-	calleeTopic := fmt.Sprintf(TopicCalleeControlFormat, session.ResidentID)
-	if err := s.publishMessage(calleeTopic, endInfo); err != nil {
+	if err := s.publishMessage(TopicResidentController, endInfo); err != nil {
 		log.Printf("[MQTT] 发送结束通知给被呼叫方失败: %v", err)
 	}
 
@@ -532,8 +539,7 @@ func (s *MQTTCallService) handleCallRequest(client mqtt.Client, msg mqtt.Message
 	}
 
 	// 发送响应
-	responseTopic := fmt.Sprintf(TopicCallerControlFormat, request.DeviceID)
-	if err := s.publishMessage(responseTopic, response); err != nil {
+	if err := s.publishMessage(TopicDeviceController, response); err != nil {
 		log.Printf("[MQTT] 发送呼叫响应失败: %v", err)
 	}
 }
@@ -587,22 +593,19 @@ func (s *MQTTCallService) sendErrorToDevice(deviceID, callID, reason string) {
 		Reason:    reason,
 	}
 
-	topic := fmt.Sprintf(TopicCallerControlFormat, deviceID)
-	if err := s.publishMessage(topic, errorInfo); err != nil {
+	if err := s.publishMessage(TopicDeviceController, errorInfo); err != nil {
 		log.Printf("[MQTT] 发送错误消息给设备失败: %v", err)
 	}
 }
 
 // PublishDeviceStatus 发布设备状态
 func (s *MQTTCallService) PublishDeviceStatus(deviceID string, status map[string]interface{}) error {
-	topic := fmt.Sprintf(TopicDeviceStatusFormat, deviceID)
-	return s.publishMessage(topic, status)
+	return s.publishMessage(TopicDeviceController, status)
 }
 
 // PublishSystemMessage 发布系统消息
 func (s *MQTTCallService) PublishSystemMessage(messageType string, message map[string]interface{}) error {
-	topic := fmt.Sprintf(TopicSystemMessageFormat, messageType)
-	return s.publishMessage(topic, message)
+	return s.publishMessage(TopicSystemMessage, message)
 }
 
 // createCallRecord 创建通话记录
@@ -703,12 +706,12 @@ func (s *MQTTCallService) InitiateCallToAll(deviceID string) (string, []string, 
 		}
 
 		// 发送呼入通知给住户
-		incomingNotification := IncomingCallNotification{
-			CallID:       callID,
-			DeviceID:     deviceID,
-			TargetUserID: residentID,
-			Timestamp:    time.Now().UnixMilli(),
-			TRTCInfo: TRTCInfo{
+		incomingNotification := IncomingCallMessage{
+			CallID:           callID,
+			DeviceDeviceID:   deviceID,
+			TargetResidentID: residentID,
+			Timestamp:        time.Now().UnixMilli(),
+			TencentRTC: TRTCInfo{
 				RoomIDType: trtcInfo.RoomIDType,
 				RoomID:     trtcInfo.RoomID,
 				SDKAppID:   trtcInfo.SDKAppID,
@@ -718,8 +721,7 @@ func (s *MQTTCallService) InitiateCallToAll(deviceID string) (string, []string, 
 		}
 
 		// 发布到住户的呼入通知主题
-		incomingTopic := fmt.Sprintf(TopicIncomingCallFormat, residentID)
-		if err := s.publishMessage(incomingTopic, incomingNotification); err != nil {
+		if err := s.publishMessage(TopicIncoming, incomingNotification); err != nil {
 			log.Printf("[MQTT] 发送呼入通知给居民 %s 失败: %v", residentID, err)
 			continue
 		}
@@ -741,8 +743,7 @@ func (s *MQTTCallService) InitiateCallToAll(deviceID string) (string, []string, 
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 	}
-	callerTopic := fmt.Sprintf(TopicCallerControlFormat, deviceID)
-	if err := s.publishMessage(callerTopic, callerControl); err != nil {
+	if err := s.publishMessage(TopicDeviceController, callerControl); err != nil {
 		log.Printf("[MQTT] 发送振铃控制消息失败: %v", err)
 	}
 
@@ -804,12 +805,12 @@ func (s *MQTTCallService) InitiateCallToHousehold(deviceID string, householdID s
 		}
 
 		// 发送呼入通知给住户
-		incomingNotification := IncomingCallNotification{
-			CallID:       callID,
-			DeviceID:     deviceID,
-			TargetUserID: residentID,
-			Timestamp:    time.Now().UnixMilli(),
-			TRTCInfo: TRTCInfo{
+		incomingNotification := IncomingCallMessage{
+			CallID:           callID,
+			DeviceDeviceID:   deviceID,
+			TargetResidentID: residentID,
+			Timestamp:        time.Now().UnixMilli(),
+			TencentRTC: TRTCInfo{
 				RoomIDType: trtcInfo.RoomIDType,
 				RoomID:     trtcInfo.RoomID,
 				SDKAppID:   trtcInfo.SDKAppID,
@@ -819,8 +820,7 @@ func (s *MQTTCallService) InitiateCallToHousehold(deviceID string, householdID s
 		}
 
 		// 发布到住户的呼入通知主题
-		incomingTopic := fmt.Sprintf(TopicIncomingCallFormat, residentID)
-		if err := s.publishMessage(incomingTopic, incomingNotification); err != nil {
+		if err := s.publishMessage(TopicIncoming, incomingNotification); err != nil {
 			log.Printf("[MQTT] 发送呼入通知给居民 %s 失败: %v", residentID, err)
 			continue
 		}
@@ -842,8 +842,7 @@ func (s *MQTTCallService) InitiateCallToHousehold(deviceID string, householdID s
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 	}
-	callerTopic := fmt.Sprintf(TopicCallerControlFormat, deviceID)
-	if err := s.publishMessage(callerTopic, callerControl); err != nil {
+	if err := s.publishMessage(TopicDeviceController, callerControl); err != nil {
 		log.Printf("[MQTT] 发送振铃控制消息失败: %v", err)
 	}
 
@@ -892,12 +891,12 @@ func (s *MQTTCallService) InitiateCallByPhone(deviceID string, phone string) (st
 	}
 
 	// 发送呼入通知给住户
-	incomingNotification := IncomingCallNotification{
-		CallID:       callID,
-		DeviceID:     deviceID,
-		TargetUserID: residentID,
-		Timestamp:    time.Now().UnixMilli(),
-		TRTCInfo: TRTCInfo{
+	incomingNotification := IncomingCallMessage{
+		CallID:           callID,
+		DeviceDeviceID:   deviceID,
+		TargetResidentID: residentID,
+		Timestamp:        time.Now().UnixMilli(),
+		TencentRTC: TRTCInfo{
 			RoomIDType: trtcInfo.RoomIDType,
 			RoomID:     trtcInfo.RoomID,
 			SDKAppID:   trtcInfo.SDKAppID,
@@ -907,8 +906,7 @@ func (s *MQTTCallService) InitiateCallByPhone(deviceID string, phone string) (st
 	}
 
 	// 发布到住户的呼入通知主题
-	incomingTopic := fmt.Sprintf(TopicIncomingCallFormat, residentID)
-	if err := s.publishMessage(incomingTopic, incomingNotification); err != nil {
+	if err := s.publishMessage(TopicIncoming, incomingNotification); err != nil {
 		return "", nil, fmt.Errorf("发送呼入通知失败: %v", err)
 	}
 
@@ -916,12 +914,12 @@ func (s *MQTTCallService) InitiateCallByPhone(deviceID string, phone string) (st
 	s.CallManager.UpdateSessionStatus(callID, "ringing")
 
 	// 发送振铃控制消息给设备
-	callerControl := CallInfo{
+	callerControl := ControlMessage{
 		Action:    "ringing",
 		CallID:    callID,
 		Timestamp: time.Now().UnixMilli(),
 	}
-	callerTopic := fmt.Sprintf(TopicCallerControlFormat, deviceID)
+	callerTopic := fmt.Sprintf(TopicDeviceController, deviceID)
 	if err := s.publishMessage(callerTopic, callerControl); err != nil {
 		log.Printf("[MQTT] 发送振铃控制消息失败: %v", err)
 	}
@@ -930,4 +928,44 @@ func (s *MQTTCallService) InitiateCallByPhone(deviceID string, phone string) (st
 	s.createCallRecord(callID, deviceID, residentID, "ringing")
 
 	return callID, []string{residentID}, nil
+}
+
+// handleDeviceControl 处理设备控制消息
+func (s *MQTTCallService) handleDeviceControl(client mqtt.Client, msg mqtt.Message) {
+	var controlMsg ControlMessage
+	if err := json.Unmarshal(msg.Payload(), &controlMsg); err != nil {
+		log.Printf("[MQTT] 解析设备控制消息失败: %v", err)
+		return
+	}
+
+	// 处理控制消息
+	if err := s.HandleCallerAction(controlMsg.CallID, controlMsg.Action, controlMsg.Reason); err != nil {
+		log.Printf("[MQTT] 处理设备控制消息失败: %v", err)
+	}
+}
+
+// handleResidentControl 处理住户控制消息
+func (s *MQTTCallService) handleResidentControl(client mqtt.Client, msg mqtt.Message) {
+	var controlMsg ControlMessage
+	if err := json.Unmarshal(msg.Payload(), &controlMsg); err != nil {
+		log.Printf("[MQTT] 解析住户控制消息失败: %v", err)
+		return
+	}
+
+	// 处理控制消息
+	if err := s.HandleCalleeAction(controlMsg.CallID, controlMsg.Action, controlMsg.Reason); err != nil {
+		log.Printf("[MQTT] 处理住户控制消息失败: %v", err)
+	}
+}
+
+// handleSystemMessage 处理系统消息
+func (s *MQTTCallService) handleSystemMessage(client mqtt.Client, msg mqtt.Message) {
+	var systemMsg map[string]interface{}
+	if err := json.Unmarshal(msg.Payload(), &systemMsg); err != nil {
+		log.Printf("[MQTT] 解析系统消息失败: %v", err)
+		return
+	}
+
+	// 记录系统消息
+	log.Printf("[MQTT] 收到系统消息: %v", systemMsg)
 }
