@@ -21,10 +21,21 @@ definitions:
     type: object
   controllers.CallActionRequest:
     properties:
-      call_info:
-        $ref: '#/definitions/controllers.CallInfo'
+      action:
+        example: answered
+        type: string
+      call_id:
+        example: mqtt-call-20250510-abcdef123456
+        type: string
+      reason:
+        example: user_busy
+        type: string
+      timestamp:
+        example: 1651234567890
+        type: integer
     required:
-    - call_info
+    - action
+    - call_id
     type: object
   controllers.CallFeedbackRequest:
     properties:
@@ -51,7 +62,7 @@ definitions:
         example: answered
         type: string
       call_id:
-        example: call-20250510-abcdef123456
+        example: mqtt-call-20250510-abcdef123456
         type: string
       reason:
         example: user_busy
@@ -73,16 +84,16 @@ definitions:
   controllers.CallSessionResponse:
     properties:
       call_id:
-        example: call-20250510-abcdef123456
+        example: mqtt-call-20250510-abcdef123456
         type: string
       device_id:
-        example: "1"
+        example: "5"
         type: string
       last_activity:
         example: "2025-05-10T15:09:10Z"
         type: string
       resident_id:
-        example: "2"
+        example: "6"
         type: string
       start_time:
         example: "2025-05-10T15:04:05Z"
@@ -293,7 +304,7 @@ definitions:
   controllers.EndCallSessionRequest:
     properties:
       call_id:
-        example: call-20250510-abcdef123456
+        example: mqtt-call-20250510-abcdef123456
         type: string
       reason:
         example: call_completed
@@ -347,11 +358,11 @@ definitions:
     properties:
       device_id:
         description: 设备ID
-        example: "1"
+        example: "5"
         type: string
       household_number:
         description: 可选，指定户号
-        example: "101"
+        example: MQTT-101
         type: string
       timestamp:
         description: 可选时间戳
@@ -363,17 +374,17 @@ definitions:
   controllers.InitiateCallResponse:
     properties:
       call_id:
-        example: call-20250510-abcdef123456
+        example: mqtt-call-20250510-abcdef123456
         type: string
       call_info:
         $ref: '#/definitions/controllers.CallInfo'
-      device_id:
-        example: "1"
+      device_device_id:
+        example: "5"
         type: string
       target_resident_ids:
         example:
-        - '["2"'
-        - '"3"]'
+        - '["6"'
+        - '"7"]'
         items:
           type: string
         type: array
@@ -429,7 +440,7 @@ definitions:
         example: 85
         type: integer
       device_id:
-        example: "1"
+        example: "5"
         type: string
       online:
         example: true
@@ -485,7 +496,7 @@ definitions:
   controllers.TRTCInfo:
     properties:
       room_id:
-        example: call_room_12345
+        example: room_5_6_1746870072
         type: string
       room_id_type:
         example: string
@@ -494,7 +505,7 @@ definitions:
         example: 1400000001
         type: integer
       user_id:
-        example: device_1
+        example: "5"
         type: string
       user_sig:
         example: eJwtzM1Og0AUhmG...

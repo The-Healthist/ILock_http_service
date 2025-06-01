@@ -40,15 +40,15 @@ func NewMQTTCallController(ctx *gin.Context, container *container.ServiceContain
 type (
 	// InitiateCallRequest 发起通话请求
 	InitiateCallRequest struct {
-		DeviceID        string `json:"device_id" binding:"required" example:"1"`    // 设备ID
-		HouseholdNumber string `json:"household_number,omitempty" example:"101"`    // 可选，指定户号
-		Timestamp       int64  `json:"timestamp,omitempty" example:"1651234567890"` // 可选时间戳
+		DeviceID        string `json:"device_id" binding:"required" example:"5"`      // 设备ID
+		HouseholdNumber string `json:"household_number,omitempty" example:"MQTT-101"` // 可选，指定户号
+		Timestamp       int64  `json:"timestamp,omitempty" example:"1651234567890"`   // 可选时间戳
 	}
 
 	// CallActionRequest 通话控制请求
 	CallActionRequest struct {
 		Action    string `json:"action" binding:"required" example:"answered"`
-		CallID    string `json:"call_id" binding:"required" example:"call-20250510-abcdef123456"`
+		CallID    string `json:"call_id" binding:"required" example:"mqtt-call-20250510-abcdef123456"`
 		Timestamp int64  `json:"timestamp,omitempty" example:"1651234567890"`
 		Reason    string `json:"reason,omitempty" example:"user_busy"`
 	}
@@ -60,13 +60,13 @@ type (
 
 	// EndCallSessionRequest 结束通话会话请求
 	EndCallSessionRequest struct {
-		CallID string `json:"call_id" binding:"required" example:"call-20250510-abcdef123456"`
+		CallID string `json:"call_id" binding:"required" example:"mqtt-call-20250510-abcdef123456"`
 		Reason string `json:"reason,omitempty" example:"call_completed"`
 	}
 
 	// PublishDeviceStatusRequest 发布设备状态请求
 	PublishDeviceStatusRequest struct {
-		DeviceID   string                 `json:"device_id" binding:"required" example:"1"`
+		DeviceID   string                 `json:"device_id" binding:"required" example:"5"`
 		Online     bool                   `json:"online" example:"true"`
 		Battery    int                    `json:"battery" example:"85"`
 		Properties map[string]interface{} `json:"properties,omitempty"`
@@ -83,9 +83,9 @@ type (
 
 	// CallSessionResponse 通话会话响应
 	CallSessionResponse struct {
-		CallID       string    `json:"call_id" example:"call-20250510-abcdef123456"`
-		DeviceID     string    `json:"device_id" example:"1"`
-		ResidentID   string    `json:"resident_id" example:"2"`
+		CallID       string    `json:"call_id" example:"mqtt-call-20250510-abcdef123456"`
+		DeviceID     string    `json:"device_id" example:"5"`
+		ResidentID   string    `json:"resident_id" example:"6"`
 		StartTime    time.Time `json:"start_time" example:"2025-05-10T15:04:05Z"`
 		Status       string    `json:"status" example:"connected"`
 		LastActivity time.Time `json:"last_activity" example:"2025-05-10T15:09:10Z"`
@@ -95,17 +95,17 @@ type (
 	// TRTCInfo 腾讯云RTC信息
 	TRTCInfo struct {
 		SDKAppID   int    `json:"sdk_app_id" example:"1400000001"`
-		UserID     string `json:"user_id" example:"device_1"`
+		UserID     string `json:"user_id" example:"5"`
 		UserSig    string `json:"user_sig" example:"eJwtzM1Og0AUhmG..."`
-		RoomID     string `json:"room_id" example:"call_room_12345"`
+		RoomID     string `json:"room_id" example:"room_5_6_1746870072"`
 		RoomIDType string `json:"room_id_type" example:"string"`
 	}
 
 	// InitiateCallResponse 发起通话响应
 	InitiateCallResponse struct {
-		CallID            string    `json:"call_id" example:"call-20250510-abcdef123456"`
-		DeviceDeviceID    string    `json:"device_device_id" example:"1"`
-		TargetResidentIDs []string  `json:"target_resident_ids" example:"[\"2\",\"3\"]"`
+		CallID            string    `json:"call_id" example:"mqtt-call-20250510-abcdef123456"`
+		DeviceDeviceID    string    `json:"device_device_id" example:"5"`
+		TargetResidentIDs []string  `json:"target_resident_ids" example:"[\"6\",\"7\"]"`
 		Timestamp         int64     `json:"timestamp" example:"1651234567890"`
 		TencentRTC        *TRTCInfo `json:"tencen_rtc,omitempty"`
 		CallInfo          *CallInfo `json:"call_info,omitempty"`
@@ -113,7 +113,7 @@ type (
 
 	// CallInfo 通话信息
 	CallInfo struct {
-		CallID    string `json:"call_id" example:"call-20250510-abcdef123456"`
+		CallID    string `json:"call_id" example:"mqtt-call-20250510-abcdef123456"`
 		Action    string `json:"action" example:"answered"`
 		Reason    string `json:"reason,omitempty" example:"user_busy"`
 		Timestamp int64  `json:"timestamp,omitempty" example:"1651234567890"`
@@ -303,7 +303,7 @@ func (c *MQTTCallController) CalleeAction() {
 // @Tags         MQTT
 // @Accept       json
 // @Produce      json
-// @Param        call_id query string true "通话会话ID" example:"call-20250510-abcdef123456"
+// @Param        call_id query string true "通话会话ID" example:"mqtt-call-20250510-abcdef123456"
 // @Success      200  {object}  CallSessionResponse
 // @Failure      400  {object}  ErrorResponse
 // @Failure      404  {object}  ErrorResponse

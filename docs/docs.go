@@ -3628,11 +3628,25 @@ const docTemplate = `{
         "controllers.CallActionRequest": {
             "type": "object",
             "required": [
-                "call_info"
+                "action",
+                "call_id"
             ],
             "properties": {
-                "call_info": {
-                    "$ref": "#/definitions/controllers.CallInfo"
+                "action": {
+                    "type": "string",
+                    "example": "answered"
+                },
+                "call_id": {
+                    "type": "string",
+                    "example": "mqtt-call-20250510-abcdef123456"
+                },
+                "reason": {
+                    "type": "string",
+                    "example": "user_busy"
+                },
+                "timestamp": {
+                    "type": "integer",
+                    "example": 1651234567890
                 }
             }
         },
@@ -3670,7 +3684,7 @@ const docTemplate = `{
                 },
                 "call_id": {
                     "type": "string",
-                    "example": "call-20250510-abcdef123456"
+                    "example": "mqtt-call-20250510-abcdef123456"
                 },
                 "reason": {
                     "type": "string",
@@ -3702,11 +3716,11 @@ const docTemplate = `{
             "properties": {
                 "call_id": {
                     "type": "string",
-                    "example": "call-20250510-abcdef123456"
+                    "example": "mqtt-call-20250510-abcdef123456"
                 },
                 "device_id": {
                     "type": "string",
-                    "example": "1"
+                    "example": "5"
                 },
                 "last_activity": {
                     "type": "string",
@@ -3714,7 +3728,7 @@ const docTemplate = `{
                 },
                 "resident_id": {
                     "type": "string",
-                    "example": "2"
+                    "example": "6"
                 },
                 "start_time": {
                     "type": "string",
@@ -4004,7 +4018,7 @@ const docTemplate = `{
             "properties": {
                 "call_id": {
                     "type": "string",
-                    "example": "call-20250510-abcdef123456"
+                    "example": "mqtt-call-20250510-abcdef123456"
                 },
                 "reason": {
                     "type": "string",
@@ -4081,12 +4095,12 @@ const docTemplate = `{
                 "device_id": {
                     "description": "设备ID",
                     "type": "string",
-                    "example": "1"
+                    "example": "5"
                 },
                 "household_number": {
                     "description": "可选，指定户号",
                     "type": "string",
-                    "example": "101"
+                    "example": "MQTT-101"
                 },
                 "timestamp": {
                     "description": "可选时间戳",
@@ -4100,14 +4114,14 @@ const docTemplate = `{
             "properties": {
                 "call_id": {
                     "type": "string",
-                    "example": "call-20250510-abcdef123456"
+                    "example": "mqtt-call-20250510-abcdef123456"
                 },
                 "call_info": {
                     "$ref": "#/definitions/controllers.CallInfo"
                 },
-                "device_id": {
+                "device_device_id": {
                     "type": "string",
-                    "example": "1"
+                    "example": "5"
                 },
                 "target_resident_ids": {
                     "type": "array",
@@ -4115,8 +4129,8 @@ const docTemplate = `{
                         "type": "string"
                     },
                     "example": [
-                        "[\"2\"",
-                        "\"3\"]"
+                        "[\"6\"",
+                        "\"7\"]"
                     ]
                 },
                 "tencen_rtc": {
@@ -4196,7 +4210,7 @@ const docTemplate = `{
                 },
                 "device_id": {
                     "type": "string",
-                    "example": "1"
+                    "example": "5"
                 },
                 "online": {
                     "type": "boolean",
@@ -4270,7 +4284,7 @@ const docTemplate = `{
             "properties": {
                 "room_id": {
                     "type": "string",
-                    "example": "call_room_12345"
+                    "example": "room_5_6_1746870072"
                 },
                 "room_id_type": {
                     "type": "string",
@@ -4282,7 +4296,7 @@ const docTemplate = `{
                 },
                 "user_id": {
                     "type": "string",
-                    "example": "device_1"
+                    "example": "5"
                 },
                 "user_sig": {
                     "type": "string",

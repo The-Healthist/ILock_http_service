@@ -9,7 +9,7 @@ ENV GOOS=linux
 ENV GOARCH=amd64
 
 # 添加版本信息
-LABEL version="1.1.0"
+LABEL version="1.3.0"
 LABEL description="ILock HTTP Service with MQTT Call Support"
 LABEL maintainer="Stone Sea"
 
@@ -33,7 +33,7 @@ FROM alpine:latest
 WORKDIR /app
 
 # 添加版本信息到最终镜像
-LABEL version="1.1.0"
+LABEL version="1.3.0"
 LABEL description="ILock HTTP Service with MQTT Call Support"
 LABEL maintainer="Stone Sea"
 
