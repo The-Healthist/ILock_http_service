@@ -1,0 +1,121 @@
+run:
+  # 超时设置，默认1m
+  timeout: 5m
+  # 忽略的目录
+  skip-dirs:
+    - mqtt
+    - logs
+    - migration_temp
+    - scripts
+    - .github
+    - .vscode
+    - docs
+  # 忽略的文件
+  skip-files:
+    - _test.go
+    - .env
+    - .env.example
+    - .env.local
+    - .env.development
+    - .env.production
+    - .env.test
+    - .sql
+    - .sh
+    - .gitignore
+    - .md
+
+# 配置具体的linters
+linters-settings:
+  errcheck:
+    # 检查类型断言
+    check-type-assertions: true
+    check-blank: false
+  gci:
+    # 将以指定前缀开头的包放在第三方包后面
+    local-prefixes: ilock-http-service
+  godox:
+    keywords:
+      - BUG
+      - FIXME
+      - OPTIMIZE
+      - HACK
+  goimports:
+    # 设置本地包前缀
+    local-prefixes: ilock-http-service
+  gomodguard:
+    allowed:
+      modules:
+        - gorm.io/gorm
+        - gorm.io/driver/mysql
+        - github.com/gin-gonic/gin
+      domains:
+        - google.golang.org
+        - gopkg.in
+        - golang.org
+        - github.com
+        - go.uber.org
+  lll:
+    # 设置行长度限制
+    line-length: 240
+
+# 启用的linters
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gofmt
+    - goimports
+    - misspell
+    - revive
+    - bodyclose
+    - dogsled
+    - dupl
+    - exportloopref
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - godot
+    - godox
+    - gofumpt
+    - goheader
+    - goprintffuncname
+    - gosec
+    - nolintlint
+    - stylecheck
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - whitespace
+    # 禁用typecheck，因为它可能会误报一些问题
+    # - typecheck
+
+# 问题排除设置
+issues:
+  # 排除某些问题
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
+    - path: main.go
+      text: "G104: Errors unhandled"
+      linters:
+        - gosec
+    - path: config/config.go
+      text: "missing return"
+      linters:
+        - typecheck
+    # 排除所有typecheck问题
+    - path: ".*"
+      linters:
+        - typecheck
+  max-issues-per-linter: 0
+  max-same-issues: 0 

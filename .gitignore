@@ -34,3 +34,5 @@
 # Database
 *.db 
 /docker-compose-frp
+/migration_temp
+/migration_scripts
