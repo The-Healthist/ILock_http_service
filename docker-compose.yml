@@ -1,6 +1,6 @@
 services:
   app:
-    image: stonesea/ilock-http-service:1.3.0
+    image: stonesea/ilock-http-service:2.3.0
     container_name: ilock_http_service
     restart: always
     ports:
@@ -14,6 +14,17 @@ services:
       - ALIYUN_RTC_APP_ID=${ALIYUN_RTC_APP_ID}
       - ALIYUN_RTC_REGION=${ALIYUN_RTC_REGION}
       - DEFAULT_ADMIN_PASSWORD=${DEFAULT_ADMIN_PASSWORD}
+      - LOCAL_DB_HOST=db
+      - LOCAL_DB_USER=root
+      - LOCAL_DB_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - LOCAL_DB_NAME=${MYSQL_DATABASE}
+      - LOCAL_DB_PORT=3306
+      - SERVER_DB_HOST=db
+      - SERVER_DB_USER=root
+      - SERVER_DB_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - SERVER_DB_NAME=${MYSQL_DATABASE}
+      - SERVER_DB_PORT=3306
+      - MQTT_BROKER_URL=tcp://mqtt:1883
     depends_on:
       db:
         condition: service_healthy
@@ -73,9 +84,10 @@ services:
       - '8883:8883'
       - '9001:9001'
     volumes:
-      - ./mqtt/config:/mosquitto/config
-      - ./mqtt/data:/mosquitto/data
-      - ./mqtt/log:/mosquitto/log
+      - ./internal/infrastructure/mqtt/config:/mosquitto/config
+      - ./internal/infrastructure/mqtt/data:/mosquitto/data
+      - ./internal/infrastructure/mqtt/log:/mosquitto/log
+      - ./internal/infrastructure/mqtt/certs:/mosquitto/certs
     networks:
       - ilock_network
     healthcheck:
