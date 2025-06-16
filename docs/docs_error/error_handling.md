@@ -137,3 +137,16 @@ func (c *Controller) HandleRequest(ctx *gin.Context) {
 - `response.ServerError(ctx)`: 服务器错误响应
 - `response.NotFound(ctx, message)`: 资源不存在响应
 - `response.Unauthorized(ctx)`: 未授权响应 
+graph TD
+    A[Analyze Controllers] --> B[Identify Response Patterns]
+    B --> C[Update Imports]
+    C --> D[Standardize Error Responses]
+    D --> E[Standardize Success Responses]
+    E --> F[Test API Endpoints]
+    
+    D --> D1[Use response.ParamError for 400]
+    D --> D2[Use response.NotFound for 404]
+    D --> D3[Use response.FailWithMessage for other errors]
+    D --> D4[Use appropriate error codes from code package]
+    
+    E --> E1[Use response.Success for all success responses]

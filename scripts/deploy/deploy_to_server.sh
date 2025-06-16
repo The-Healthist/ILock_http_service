@@ -1,18 +1,14 @@
 #!/bin/bash
-# iLock 系统迁移脚本
+# iLock 服务器部署脚本
 
 # 版本设置
 VERSION="2.3.0"
 
-# 目标服务器设置
-TARGET_HOST="117.72.193.54"
-TARGET_PORT="22"
-TARGET_USERNAME="root"
-TARGET_PASSWORD="1090119your@"
-
-# 备份目录设置
-BACKUP_DIR="$(dirname "$0")/backup"
-LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.tar.gz | head -n1)
+# Server settings
+SSH_HOST="39.108.49.167"
+SSH_PORT="22"
+SSH_USERNAME="root"
+SSH_PASSWORD="1090119your@"
 
 # 颜色输出函数
 function print_info() {
@@ -50,108 +46,17 @@ fi
 
 # 定义SSH和SCP命令的函数，自动使用密码
 function ssh_cmd() {
-  export SSHPASS="$TARGET_PASSWORD"
-  sshpass -e ssh -o StrictHostKeyChecking=no -p "$TARGET_PORT" "$TARGET_USERNAME@$TARGET_HOST" "$@"
+  export SSHPASS="$SSH_PASSWORD"
+  sshpass -e ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USERNAME@$SSH_HOST" "$@"
 }
 
 function scp_cmd() {
-  export SSHPASS="$TARGET_PASSWORD"
-  sshpass -e scp -o StrictHostKeyChecking=no -P "$TARGET_PORT" "$@" "$TARGET_USERNAME@$TARGET_HOST:/root/ilock/"
+  export SSHPASS="$SSH_PASSWORD"
+  sshpass -e scp -o StrictHostKeyChecking=no -P "$SSH_PORT" "$@" "$SSH_USERNAME@$SSH_HOST:/root/ilock/"
 }
 
-# 检查备份文件
-if [ ! -f "$LATEST_BACKUP" ]; then
-  print_error "未找到备份文件！请先运行 backup.sh"
-  exit 1
-fi
-
-print_info "使用备份文件: $LATEST_BACKUP"
-
-# 创建目标服务器目录
-print_info "创建目标服务器目录..."
-ssh_cmd "mkdir -p /root/ilock"
-
-# 上传备份文件
-print_info "上传备份文件..."
-scp_cmd "$LATEST_BACKUP"
-
-# 解压备份文件
-print_info "解压备份文件..."
-ssh_cmd "cd /root/ilock && tar xzf $(basename "$LATEST_BACKUP")"
-
-# 修复.env文件
-print_info "修复.env文件..."
-# 只生成新的MQTT_CLIENT_ID并替换
-NEW_MQTT_CLIENT_ID="mqttx_$(openssl rand -hex 8)"
-echo "新的MQTT_CLIENT_ID: $NEW_MQTT_CLIENT_ID"
-ssh_cmd "cd /root/ilock && sed -i 's/^MQTT_CLIENT_ID=.*/MQTT_CLIENT_ID=$NEW_MQTT_CLIENT_ID/' .env"
-
-# 从备份中恢复其他环境变量
-print_info "恢复环境变量..."
-ssh_cmd "cd /root/ilock && if [ -f env.tar.gz ]; then tar xzf env.tar.gz && if [ -d env ]; then cat env/* >> .env && rm -rf env; fi; fi"
-
-# 创建MQTT配置
-print_info "创建MQTT配置..."
-ssh_cmd "cd /root/ilock && mkdir -p mqtt/config mqtt/data mqtt/log"
-
-# 创建MQTT配置文件
-print_info "创建MQTT配置文件..."
-cat > mosquitto.conf << 'EOF'
-# MQTT Broker Configuration
-listener 1883
-protocol mqtt
-
-# Authentication - 允许匿名访问，方便测试
-allow_anonymous true
-
-# Persistence
-persistence true
-persistence_location /mosquitto/data/
-persistence_file mosquitto.db
-
-# Logging
-log_dest file /mosquitto/log/mosquitto.log
-log_type all
-connection_messages true
-log_timestamp true
-
-# Security
-allow_zero_length_clientid false
-
-# Performance
-max_queued_messages 1000
-max_inflight_messages 20
-max_connections 1000
-
-# 在Mosquitto 2.0中，不再使用topic指令，而是使用ACL
-# 允许所有用户访问所有主题
-acl_file /mosquitto/config/acl.conf
-EOF
-
-# 创建ACL文件
-cat > acl.conf << 'EOF'
-# 允许所有用户访问所有主题
-topic readwrite #
-EOF
-
-# 上传配置文件
-print_info "上传MQTT配置文件..."
-scp_cmd mosquitto.conf
-scp_cmd acl.conf
-ssh_cmd "cd /root/ilock && mkdir -p mqtt/config && mv mosquitto.conf mqtt/config/ && mv acl.conf mqtt/config/"
-
-# 验证配置文件
-print_info "验证MQTT配置文件..."
-ssh_cmd "cd /root/ilock && ls -la mqtt/config/ && cat mqtt/config/mosquitto.conf"
-
-# 设置MQTT目录权限
-print_info "设置MQTT目录权限..."
-ssh_cmd "cd /root/ilock && chmod -R 777 mqtt"
-
 # 创建docker-compose.yml文件
-print_info "创建docker-compose.yml文件..."
 cat > docker-compose.yml << EOF
-version: '3.8'
 services: 
   app: 
     image: stonesea/ilock-http-service:$VERSION
@@ -244,7 +149,7 @@ services:
     networks: 
       - ilock_network 
     healthcheck: 
-      test: ["CMD", "mosquitto_sub", "-t", "\\$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      test: ['CMD', 'mosquitto_sub', '-t', '\$SYS/#', '-C', '1', '-i', 'healthcheck', '-W', '3']
       interval: 10s 
       timeout: 5s 
       retries: 3 
@@ -258,12 +163,29 @@ volumes:
   redis_data:  
 EOF
 
-# 上传docker-compose.yml
-print_info "上传docker-compose.yml..."
-scp_cmd docker-compose.yml
+# 准备MQTT配置文件
+mkdir -p mqtt/config
+cat > mqtt/config/mosquitto.conf << 'EOF'
+# 监听端口
+listener 1883
+listener 8883
+listener 9001
+protocol websockets
 
-# 配置Docker镜像加速
-print_info "配置Docker镜像加速..."
+# 持久化设置
+persistence true
+persistence_location /mosquitto/data/
+persistence_file mosquitto.db
+
+# 日志设置
+log_dest file /mosquitto/log/mosquitto.log
+log_type all
+
+# 默认允许匿名访问
+allow_anonymous true
+EOF
+
+# 准备Docker镜像加速配置
 cat > setup_docker_mirror.sh << 'EOF'
 #!/bin/bash
 
@@ -289,16 +211,28 @@ systemctl restart docker
 echo "Docker镜像加速配置完成"
 EOF
 
-scp_cmd setup_docker_mirror.sh
+# 复制文件到服务器
+print_info "复制部署文件到服务器..."
+scp_cmd docker-compose.yml .env setup_docker_mirror.sh
+
+# 创建MQTT所需目录
+print_info "创建MQTT所需目录..."
+ssh_cmd "cd /root/ilock && mkdir -p mqtt/config mqtt/data mqtt/log"
+
+# 上传MQTT配置文件
+print_info "上传MQTT配置文件..."
+scp_cmd mqtt/config/mosquitto.conf mqtt/config/
+
+# 配置Docker镜像加速
+print_info "配置Docker镜像加速..."
 ssh_cmd "cd /root/ilock && chmod +x setup_docker_mirror.sh && ./setup_docker_mirror.sh"
 
-# 停止并清理现有容器
-print_info "停止并清理现有容器..."
-ssh_cmd "cd /root/ilock && docker-compose down -v || true"
-ssh_cmd "docker system prune -f || true"
+# 停止现有服务
+print_info "停止现有服务..."
+ssh_cmd "cd /root/ilock && docker-compose down"
 
-# 拉取镜像
-print_info "拉取Docker镜像..."
+# 拉取新镜像
+print_info "拉取新镜像..."
 ssh_cmd "cd /root/ilock && docker-compose pull"
 
 # 启动服务
@@ -307,24 +241,16 @@ ssh_cmd "cd /root/ilock && docker-compose up -d"
 
 # 等待服务就绪
 print_info "等待服务就绪..."
-ssh_cmd "cd /root/ilock && for i in {1..60}; do if docker-compose ps | grep -q 'Up (healthy)'; then echo '所有服务已就绪！'; break; fi; if [ \$i -eq 60 ]; then echo '服务启动超时'; docker-compose logs; exit 1; fi; echo '等待服务就绪... (尝试 '\$i'/60)'; sleep 5; done"
+ssh_cmd "cd /root/ilock && for i in {1..30}; do if docker-compose ps | grep -q 'Up (healthy)'; then echo '所有服务已就绪！'; break; fi; if [ \$i -eq 30 ]; then echo '服务启动超时'; docker-compose logs; exit 1; fi; echo '等待服务就绪... (尝试 '\$i'/30)'; sleep 2; done"
 
 # 检查服务状态
 print_info "检查服务状态..."
 ssh_cmd "cd /root/ilock && docker-compose ps"
 
-# 如果有服务处于Restarting状态，尝试重新启动
-print_info "检查是否有服务需要重新启动..."
-if ssh_cmd "cd /root/ilock && docker-compose ps | grep -q 'Restarting'"; then
-  print_warning "检测到服务重启中，尝试重新启动所有服务..."
-  ssh_cmd "cd /root/ilock && docker-compose restart"
-  print_info "等待服务重新启动..."
-  ssh_cmd "cd /root/ilock && sleep 30 && docker-compose ps"
-fi
-
 # 清理临时文件
-rm -f setup_docker_mirror.sh docker-compose.yml mosquitto.conf acl.conf
+rm -f setup_docker_mirror.sh docker-compose.yml
+rm -rf mqtt
 
-print_success "迁移完成！"
+print_success "部署完成！"
 print_info "服务状态："
 ssh_cmd "cd /root/ilock && docker-compose ps" 
