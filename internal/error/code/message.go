@@ -1,6 +1,6 @@
 package code
 
-// 错误码消息映射
+// 错误码消息映射.
 var codeMessageMap = map[int]string{
 	// 通用错误码
 	ErrSuccess:      "成功",
@@ -39,7 +39,7 @@ var codeMessageMap = map[int]string{
 	ErrConnectionFailed: "连接失败",
 }
 
-// 错误码HTTP状态码映射
+// 错误码HTTP状态码映射.
 var codeStatusMap = map[int]int{
 	// 通用错误码
 	ErrSuccess:      StatusOK,
@@ -78,7 +78,7 @@ var codeStatusMap = map[int]int{
 	ErrConnectionFailed: StatusInternalServerError,
 }
 
-// GetMessage 获取错误码对应的消息
+// GetMessage 获取错误码对应的消息.
 func GetMessage(code int) string {
 	if msg, ok := codeMessageMap[code]; ok {
 		return msg
@@ -86,7 +86,7 @@ func GetMessage(code int) string {
 	return "未知错误"
 }
 
-// GetStatus 获取错误码对应的HTTP状态码
+// GetStatus 获取错误码对应的HTTP状态码.
 func GetStatus(code int) int {
 	if status, ok := codeStatusMap[code]; ok {
 		return status

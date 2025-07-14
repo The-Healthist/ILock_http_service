@@ -5,8 +5,8 @@
 VERSION="2.3.0"
 
 # Docker Hub settings
-DOCKER_USERNAME=""
-DOCKER_PASSWORD=""
+DOCKER_USERNAME="stonesea"
+DOCKER_PASSWORD="1090119your"
 
 # 颜色输出函数
 function print_info() {

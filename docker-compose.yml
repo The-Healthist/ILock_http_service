@@ -30,14 +30,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      mqtt:
+        condition: service_healthy
     networks:
       - ilock_network
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:20033/api/ping']
-      interval: 10s
-      timeout: 5s
+      test: ['CMD', 'curl', '-f', 'http://localhost:20033/api/health']
+      interval: 30s
+      timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 40s
 
   db:
     image: mysql:8.0
@@ -50,14 +52,19 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
-    command: --default-authentication-plugin=mysql_native_password
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --max_connections=1000
+      - --innodb_buffer_pool_size=1G
     networks:
       - ilock_network
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      test:
+        ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p${MYSQL_ROOT_PASSWORD}']
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 30s
 
   redis:
     image: redis:7.0-alpine
@@ -67,6 +74,7 @@ services:
       - '6380:6379'
     volumes:
       - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
     networks:
       - ilock_network
     healthcheck:
@@ -74,13 +82,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 5s
 
   mqtt:
     image: eclipse-mosquitto:2.0
     container_name: ilock_mqtt
     restart: always
     ports:
-      - '1883:1883'
+      - '1884:1883'
       - '8883:8883'
       - '9001:9001'
     volumes:
@@ -91,10 +100,23 @@ services:
     networks:
       - ilock_network
     healthcheck:
-      test: ['CMD', 'mosquitto_sub', '-t', '$$SYS/#', '-C', '1', '-i', 'healthcheck', '-W', '3']
+      test:
+        [
+          'CMD',
+          '/usr/bin/mosquitto_sub',
+          '-t',
+          '$$SYS/#',
+          '-C',
+          '1',
+          '-i',
+          'healthcheck',
+          '-W',
+          '3',
+        ]
       interval: 10s
       timeout: 5s
       retries: 3
+      start_period: 10s
 
 networks:
   ilock_network:
@@ -102,4 +124,6 @@ networks:
 
 volumes:
   mysql_data:
+    name: ilock_mysql_data
   redis_data:
+    name: ilock_redis_data

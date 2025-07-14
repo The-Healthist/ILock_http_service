@@ -24,9 +24,11 @@ import (
 	"ilock-http-service/internal/app/routes"
 	"ilock-http-service/internal/domain/models"
 	"ilock-http-service/internal/infrastructure/config"
+	"ilock-http-service/internal/infrastructure/database"
 	Logger "ilock-http-service/pkg/logger"
 	"log"
 	"os"
+	"runtime"
 
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -36,6 +38,9 @@ import (
 )
 
 func main() {
+	// 设置最大处理器数量，提高并发性能
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	// 初始化日志配置
 	if err := Logger.SetupLogger(); err != nil {
 		fmt.Printf("初始化日志配置失败: %v\n", err)
@@ -53,11 +58,12 @@ func main() {
 	// 获取配置
 	cfg := config.GetConfig()
 
-	// 连接数据库
-	db, err := initDB(cfg)
+	// 创建优化的数据库连接池
+	pool, err := database.NewConnectionPool(cfg)
 	if err != nil {
-		log.Fatalf("无法连接数据库: %v", err)
+		log.Fatalf("无法创建数据库连接池: %v", err)
 	}
+	db := pool.GetDB()
 
 	// 根据配置执行不同的数据库操作
 	if cfg.DBMigrationMode == "drop" {
@@ -90,6 +96,9 @@ func main() {
 
 	// 使用配置中的端口，而不是直接从环境变量获取
 	port := cfg.ServerPort
+
+	// 打印系统信息
+	printSystemInfo(pool)
 
 	// 启动服务器 - 注意监听所有接口(0.0.0.0)而不是只监听localhost
 	Logger.Info("服务器启动在: http://0.0.0.0:%s", port)
@@ -256,33 +265,43 @@ func ensureAdminExists(db *gorm.DB, cfg *config.Config) {
 	var count int64
 	db.Model(&models.Admin{}).Count(&count)
 
-	// 如果没有管理员账户，创建默认管理员
 	if count == 0 {
-		log.Println("系统中没有管理员账户，创建默认管理员")
-
-		// 检查是否设置了默认管理员密码
-		if cfg.DefaultAdminPassword == "" {
-			log.Fatal("未设置默认管理员密码，请在环境变量中设置DEFAULT_ADMIN_PASSWORD")
-		}
-
-		// 加密密码
+		// 如果没有管理员，创建默认管理员
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(cfg.DefaultAdminPassword), bcrypt.DefaultCost)
 		if err != nil {
-			log.Fatalf("密码加密失败: %v", err)
+			log.Fatalf("生成密码哈希失败: %v", err)
 		}
 
-		// 创建默认管理员
 		admin := models.Admin{
 			Username: "admin",
 			Password: string(hashedPassword),
-			Phone:    "13800000000",
-			Email:    "admin@example.com",
+			Role:     "system_admin",
+			Status:   "active",
 		}
 
 		if err := db.Create(&admin).Error; err != nil {
 			log.Fatalf("创建默认管理员失败: %v", err)
 		}
 
-		log.Println("默认管理员创建成功，用户名: admin")
+		log.Println("已创建默认管理员账户")
 	}
+}
+
+// printSystemInfo 打印系统信息
+func printSystemInfo(pool *database.ConnectionPool) {
+	// 打印数据库连接池信息
+	stats, err := pool.Stats()
+	if err == nil {
+		log.Printf("数据库连接池状态: %+v", stats)
+	}
+
+	// 打印系统资源信息
+	log.Printf("系统CPU核心数: %d", runtime.NumCPU())
+	log.Printf("当前Go协程数: %d", runtime.NumGoroutine())
+
+	// 打印内存信息
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	log.Printf("系统内存使用: Alloc=%v MiB, TotalAlloc=%v MiB, Sys=%v MiB",
+		m.Alloc/1024/1024, m.TotalAlloc/1024/1024, m.Sys/1024/1024)
 }
